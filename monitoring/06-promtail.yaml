@@ -45,35 +45,24 @@ data:
 
     scrape_configs:
       - job_name: kubernetes-pods
-        kubernetes_sd_configs:
-          - role: pod
+        static_configs:
+          - targets:
+              - localhost
+            labels:
+              job: kubernetes-pods
+              __path__: /var/log/pods/*/*/*.log
+
         pipeline_stages:
+          # Parsear formato CRI (containerd)
           - cri: {}
-        relabel_configs:
-          # Solo procesar pods que corren en ESTE nodo
-          - source_labels: [__meta_kubernetes_pod_node_name]
-            action: keep
-            regex: ${NODE_NAME}
-          # Ignorar pods sin fase (terminados)
-          - source_labels: [__meta_kubernetes_pod_phase]
-            action: drop
-            regex: (Failed|Succeeded)
-          - source_labels: [__meta_kubernetes_namespace]
-            target_label: namespace
-          - source_labels: [__meta_kubernetes_pod_name]
-            target_label: pod
-          - source_labels: [__meta_kubernetes_pod_container_name]
-            target_label: container
-          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
-            separator: /
-            target_label: job
-          # Construir la ruta al archivo de log del pod en el nodo
-          - source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
-            separator: /
-            target_label: __path__
-            replacement: /var/log/pods/*$1/*.log
-          - action: labelmap
-            regex: __meta_kubernetes_pod_label_(.+)
+          # Extraer namespace, pod y container del path del archivo
+          - regex:
+              expression: '/var/log/pods/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_[^/]+/(?P<container>[^/]+)/'
+              source: filename
+          - labels:
+              namespace:
+              pod_name:
+              container:
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -101,13 +90,6 @@ spec:
           image: grafana/promtail:2.9.4
           args:
             - -config.file=/etc/promtail/promtail.yaml
-            - -config.expand-env=true
-          env:
-            # Downward API: nombre del nodo donde corre este pod
-            - name: NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
           ports:
             - containerPort: 9080
           readinessProbe:
