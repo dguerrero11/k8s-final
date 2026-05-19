@@ -1,0 +1,298 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus.monitoring.svc:9090
+        access: proxy
+        isDefault: true
+        jsonData:
+          timeInterval: "15s"
+          exemplarTraceIdDestinations:
+            - name: traceID
+              datasourceUid: tempo
+
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki.monitoring.svc:3100
+        access: proxy
+        jsonData:
+          derivedFields:
+            - name: TraceID
+              matcherRegex: '"traceID":"(\w+)"'
+              url: "$${__value.raw}"
+              datasourceUid: tempo
+
+      - name: Tempo
+        type: tempo
+        uid: tempo
+        url: http://tempo.monitoring.svc:3200
+        access: proxy
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            tags:
+              - key: "namespace"
+              - key: "pod"
+          tracesToMetrics:
+            datasourceUid: prometheus
+            tags:
+              - key: "namespace"
+              - key: "pod"
+          serviceMap:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provider
+  namespace: monitoring
+data:
+  provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: bootcamp
+        type: file
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+# ── UN SOLO ConfigMap con TODOS los dashboards ───────────────────────────────
+# Se monta en /var/lib/grafana/dashboards  (sin subPath, sin conflictos)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+data:
+  # ── Dashboard ArgoCD ─────────────────────────────────────────────────────
+  argocd.json: |
+    {
+      "uid": "argocd-bootcamp",
+      "title": "ArgoCD — Estado de Aplicaciones",
+      "tags": ["argocd", "bootcamp"],
+      "schemaVersion": 38,
+      "refresh": "30s",
+      "time": { "from": "now-1h", "to": "now" },
+      "panels": [
+        {
+          "id": 1, "title": "Apps Sincronizadas", "type": "stat",
+          "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "count(argocd_app_info{sync_status=\"Synced\"})", "legendFormat": "Synced" }]
+        },
+        {
+          "id": 2, "title": "Apps OutOfSync", "type": "stat",
+          "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "count(argocd_app_info{sync_status=\"OutOfSync\"}) or vector(0)", "legendFormat": "OutOfSync" }]
+        },
+        {
+          "id": 3, "title": "Apps Healthy", "type": "stat",
+          "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "count(argocd_app_info{health_status=\"Healthy\"})", "legendFormat": "Healthy" }]
+        },
+        {
+          "id": 4, "title": "Apps Degraded", "type": "stat",
+          "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "count(argocd_app_info{health_status=\"Degraded\"}) or vector(0)", "legendFormat": "Degraded" }]
+        },
+        {
+          "id": 5, "title": "Estado de Aplicaciones", "type": "table",
+          "gridPos": { "x": 0, "y": 4, "w": 24, "h": 8 },
+          "options": { "sortBy": [{ "displayName": "App", "desc": false }] },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "argocd_app_info", "instant": true, "format": "table" }],
+          "transformations": [{ "id": "organize", "options": { "excludeByName": { "Time": true, "Value": true, "__name__": true, "container": true, "endpoint": true, "instance": true, "job": true, "pod": true, "service": true, "operation": true }, "renameByName": { "name": "App", "project": "Proyecto", "namespace": "Namespace", "sync_status": "Sync", "health_status": "Health", "dest_namespace": "Dest NS" } } }]
+        },
+        {
+          "id": 6, "title": "Sync Operations Rate (5m)", "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+          "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(argocd_app_sync_total[5m])", "legendFormat": "{{name}} ({{phase}})" }]
+        },
+        {
+          "id": 7, "title": "Git Request Duration p99", "type": "timeseries",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+          "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.99, rate(argocd_git_request_duration_seconds_bucket[5m]))", "legendFormat": "p99 {{request_type}}" }]
+        }
+      ]
+    }
+  # ── Dashboard Tekton ─────────────────────────────────────────────────────
+  tekton.json: |
+    {
+      "uid": "tekton-bootcamp",
+      "title": "Tekton — Pipelines & Tasks",
+      "tags": ["tekton", "cicd", "bootcamp"],
+      "schemaVersion": 38,
+      "refresh": "30s",
+      "time": { "from": "now-3h", "to": "now" },
+      "panels": [
+        {
+          "id": 1, "title": "PipelineRuns Totales", "type": "stat",
+          "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(tekton_pipelines_controller_pipelinerun_count_total) or vector(0)", "legendFormat": "PipelineRuns" }]
+        },
+        {
+          "id": 2, "title": "TaskRuns Totales", "type": "stat",
+          "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(tekton_pipelines_controller_taskrun_count_total) or vector(0)", "legendFormat": "TaskRuns" }]
+        },
+        {
+          "id": 3, "title": "Goroutines Controller", "type": "stat",
+          "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 200 }, { "color": "red", "value": 500 }] } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "go_goroutines{job=\"tekton\"}", "legendFormat": "{{instance}}" }]
+        },
+        {
+          "id": 4, "title": "Work Queue Depth", "type": "stat",
+          "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 10 }, { "color": "red", "value": 50 }] } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(workqueue_depth{job=\"tekton\"}) or vector(0)", "legendFormat": "Queue depth" }]
+        },
+        {
+          "id": 5, "title": "Duración PipelineRuns (p50/p95/p99)", "type": "timeseries",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+          "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.50, rate(tekton_pipelines_controller_pipelinerun_duration_seconds_bucket[10m]))", "legendFormat": "p50" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, rate(tekton_pipelines_controller_pipelinerun_duration_seconds_bucket[10m]))", "legendFormat": "p95" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.99, rate(tekton_pipelines_controller_pipelinerun_duration_seconds_bucket[10m]))", "legendFormat": "p99" }
+          ]
+        },
+        {
+          "id": 6, "title": "Duración TaskRuns (p50/p95/p99)", "type": "timeseries",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+          "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.50, rate(tekton_pipelines_controller_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p50" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, rate(tekton_pipelines_controller_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p95" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.99, rate(tekton_pipelines_controller_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p99" }
+          ]
+        },
+        {
+          "id": 7, "title": "Memoria RSS Controller", "type": "timeseries",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+          "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "process_resident_memory_bytes{job=\"tekton\"}", "legendFormat": "{{instance}}" }]
+        },
+        {
+          "id": 8, "title": "WorkQueue Add Rate (5m)", "type": "timeseries",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+          "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(workqueue_adds_total{job=\"tekton\"}[5m])", "legendFormat": "{{name}}" }]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-pvc
+  namespace: monitoring
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        runAsUser: 472
+        runAsGroup: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.1.0
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: bootcamp2026
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+            - name: data
+              mountPath: /var/lib/grafana
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboards-provider
+          configMap:
+            name: grafana-dashboards-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+        - name: data
+          persistentVolumeClaim:
+            claimName: grafana-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels:
+    app: grafana
+spec:
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30300
+  selector:
+    app: grafana
