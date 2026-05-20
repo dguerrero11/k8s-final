@@ -150,28 +150,28 @@ data:
           "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
           "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(tekton_pipelines_controller_pipelinerun_count_total) or vector(0)", "legendFormat": "PipelineRuns" }]
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(tekton_pipelines_controller_pipelinerun_total) or vector(0)", "legendFormat": "PipelineRuns" }]
         },
         {
           "id": 2, "title": "TaskRuns Totales", "type": "stat",
           "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
           "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(tekton_pipelines_controller_taskrun_count_total) or vector(0)", "legendFormat": "TaskRuns" }]
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(tekton_pipelines_controller_taskrun_total) or vector(0)", "legendFormat": "TaskRuns" }]
         },
         {
-          "id": 3, "title": "Goroutines Controller", "type": "stat",
+          "id": 3, "title": "Heap Alloc Controller", "type": "stat",
           "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
           "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 200 }, { "color": "red", "value": 500 }] } } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "go_goroutines{job=\"tekton\"}", "legendFormat": "{{instance}}" }]
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "tekton_pipelines_controller_go_heap_alloc{name=\"\"}", "legendFormat": "Heap Alloc" }]
         },
         {
           "id": 4, "title": "Work Queue Depth", "type": "stat",
           "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
           "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 10 }, { "color": "red", "value": 50 }] } } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(workqueue_depth{job=\"tekton\"}) or vector(0)", "legendFormat": "Queue depth" }]
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(tekton_pipelines_controller_workqueue_depth) or vector(0)", "legendFormat": "Queue depth" }]
         },
         {
           "id": 5, "title": "Duración PipelineRuns (p50/p95/p99)", "type": "timeseries",
@@ -188,22 +188,22 @@ data:
           "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
           "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
           "targets": [
-            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.50, rate(tekton_pipelines_controller_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p50" },
-            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, rate(tekton_pipelines_controller_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p95" },
-            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.99, rate(tekton_pipelines_controller_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p99" }
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.50, rate(tekton_pipelines_controller_pipelinerun_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p50 {{task}}" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, rate(tekton_pipelines_controller_pipelinerun_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p95 {{task}}" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.99, rate(tekton_pipelines_controller_pipelinerun_taskrun_duration_seconds_bucket[10m]))", "legendFormat": "p99 {{task}}" }
           ]
         },
         {
-          "id": 7, "title": "Memoria RSS Controller", "type": "timeseries",
+          "id": 7, "title": "Heap Alloc Controller (bytes)", "type": "timeseries",
           "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
           "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "process_resident_memory_bytes{job=\"tekton\"}", "legendFormat": "{{instance}}" }]
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "tekton_pipelines_controller_go_heap_alloc{name=\"\"}", "legendFormat": "Heap Alloc" }]
         },
         {
           "id": 8, "title": "WorkQueue Add Rate (5m)", "type": "timeseries",
           "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
           "fieldConfig": { "defaults": { "unit": "ops", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 5 } } },
-          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(workqueue_adds_total{job=\"tekton\"}[5m])", "legendFormat": "{{name}}" }]
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(tekton_pipelines_controller_workqueue_adds_total[5m])", "legendFormat": "{{name}}" }]
         }
       ]
     }
