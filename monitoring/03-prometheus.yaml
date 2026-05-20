@@ -48,6 +48,14 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager.monitoring.svc:9093']
+
+    rule_files:
+      - /etc/prometheus/rules.yml
+
     scrape_configs:
 
       # ── Prometheus mismo ──────────────────────────────────────────────────
@@ -104,6 +112,11 @@ data:
               - 'argocd-repo-server.argocd.svc:8084'
               - 'argocd-notifications-controller-metrics.argocd.svc:9001'
 
+      # ── AlertManager ─────────────────────────────────────────────────────
+      - job_name: 'alertmanager'
+        static_configs:
+          - targets: ['alertmanager.monitoring.svc:9093']
+
       # ── Pods con anotación prometheus.io/scrape: "true" ──────────────────
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
@@ -127,6 +140,94 @@ data:
             target_label: namespace
           - source_labels: [__meta_kubernetes_pod_name]
             target_label: pod
+  rules.yml: |
+    groups:
+
+      # ── Tekton CI/CD ────────────────────────────────────────────────────────
+      - name: tekton-alerts
+        rules:
+          - alert: TektonPipelineFailed
+            expr: tekton_pipelines_controller_pipelinerun_total{status="failed"} > 0
+            for: 0m
+            labels:
+              severity: warning
+              team: cicd
+            annotations:
+              summary: "Pipeline de Tekton falló"
+              description: "El pipeline '{{ $labels.pipeline }}' tiene {{ $value }} run(s) fallidos en namespace {{ $labels.namespace }}"
+
+          - alert: TektonPipelineSlowBuild
+            expr: |
+              histogram_quantile(0.99,
+                rate(tekton_pipelines_controller_pipelinerun_duration_seconds_bucket[10m])
+              ) > 120
+            for: 1m
+            labels:
+              severity: warning
+              team: cicd
+            annotations:
+              summary: "Pipeline de Tekton tarda más de 2 minutos (p99)"
+              description: "El p99 de duración es {{ $value | humanizeDuration }}"
+
+      # ── ArgoCD GitOps ───────────────────────────────────────────────────────
+      - name: argocd-alerts
+        rules:
+          - alert: ArgoAppOutOfSync
+            expr: argocd_app_info{sync_status="OutOfSync"} == 1
+            for: 0m
+            labels:
+              severity: warning
+              team: gitops
+            annotations:
+              summary: "App ArgoCD desincronizada"
+              description: "La app '{{ $labels.name }}' está OutOfSync → destino {{ $labels.dest_namespace }}"
+
+          - alert: ArgoAppDegraded
+            expr: argocd_app_info{health_status="Degraded"} == 1
+            for: 1m
+            labels:
+              severity: critical
+              team: gitops
+            annotations:
+              summary: "App ArgoCD degradada"
+              description: "La app '{{ $labels.name }}' tiene estado de salud Degraded"
+
+      # ── Kubernetes General ──────────────────────────────────────────────────
+      - name: kubernetes-alerts
+        rules:
+          - alert: DeploymentUnavailable
+            expr: |
+              kube_deployment_status_replicas_available
+                < kube_deployment_spec_replicas
+            for: 1m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Deployment sin réplicas suficientes"
+              description: "{{ $labels.namespace }}/{{ $labels.deployment }}: solo {{ $value }} réplicas disponibles"
+
+          - alert: PodCrashLooping
+            expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+            for: 0m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Pod en CrashLoopBackOff"
+              description: "{{ $labels.namespace }}/{{ $labels.pod }} reiniciado {{ $value | humanize }} veces en 15 minutos"
+
+          - alert: PodNotRunning
+            expr: |
+              kube_pod_status_phase{phase=~"Failed|Unknown", namespace!="kube-system"} == 1
+            for: 2m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "Pod en estado anormal"
+              description: "{{ $labels.namespace }}/{{ $labels.pod }} está en fase {{ $labels.phase }}"
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

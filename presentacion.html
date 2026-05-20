@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stack de Observabilidad en Kubernetes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .slideshow { width: 100vw; height: 100vh; position: relative; }
+
+  .slide {
+    display: none;
+    width: 100%;
+    height: 100%;
+    padding: 60px 80px;
+    flex-direction: column;
+    justify-content: center;
+    position: absolute;
+    top: 0; left: 0;
+    animation: fadeIn 0.4s ease;
+  }
+  .slide.active { display: flex; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── Portada ── */
+  .slide-cover {
+    background: linear-gradient(135deg, #0f1117 0%, #1a1f2e 50%, #0f1117 100%);
+    align-items: center;
+    text-align: center;
+  }
+  .slide-cover .logo-row {
+    display: flex; gap: 24px; justify-content: center; margin-bottom: 40px; flex-wrap: wrap;
+  }
+  .logo-pill {
+    background: #1e2433; border: 1px solid #2d3748;
+    border-radius: 999px; padding: 8px 20px;
+    font-size: 14px; color: #a0aec0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .logo-pill span { font-size: 18px; }
+  .cover-title {
+    font-size: 56px; font-weight: 800;
+    background: linear-gradient(90deg, #f6ad55, #f687b3, #76e4f7);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1.1; margin-bottom: 20px;
+  }
+  .cover-sub {
+    font-size: 22px; color: #718096; margin-bottom: 40px;
+  }
+  .cover-badge {
+    background: linear-gradient(90deg, #2d3748, #1a202c);
+    border: 1px solid #4a5568;
+    border-radius: 12px; padding: 14px 32px;
+    font-size: 16px; color: #a0aec0;
+  }
+
+  /* ── Slides normales ── */
+  .slide-title {
+    font-size: 38px; font-weight: 700;
+    color: #f6ad55;
+    margin-bottom: 8px;
+    border-bottom: 2px solid #2d3748;
+    padding-bottom: 16px;
+  }
+  .slide-subtitle {
+    font-size: 18px; color: #718096; margin-bottom: 40px;
+  }
+
+  /* ── Grid de cards ── */
+  .cards { display: grid; gap: 20px; }
+  .cards-2 { grid-template-columns: 1fr 1fr; }
+  .cards-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cards-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .card {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .card-icon { font-size: 32px; margin-bottom: 12px; }
+  .card-title { font-size: 18px; font-weight: 700; color: #f6ad55; margin-bottom: 8px; }
+  .card-body { font-size: 14px; color: #a0aec0; line-height: 1.6; }
+
+  /* ── Highlight colors ── */
+  .green { color: #68d391; }
+  .orange { color: #f6ad55; }
+  .blue { color: #76e4f7; }
+  .pink { color: #f687b3; }
+  .purple { color: #b794f4; }
+
+  /* ── Arquitectura ── */
+  .arch-box {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+  }
+  .arch-row {
+    display: flex; justify-content: center; align-items: center;
+    gap: 12px; margin: 12px 0; flex-wrap: wrap;
+  }
+  .arch-pill {
+    background: #0f1117;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .arch-arrow { font-size: 22px; color: #4a5568; }
+  .arch-label { font-size: 11px; color: #718096; margin-top: 6px; }
+
+  /* ── Timeline de Demo ── */
+  .timeline { display: flex; flex-direction: column; gap: 20px; }
+  .timeline-item {
+    display: flex; gap: 20px; align-items: flex-start;
+  }
+  .timeline-dot {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+    border: 2px solid;
+  }
+  .timeline-content { flex: 1; }
+  .timeline-title { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .timeline-desc { font-size: 14px; color: #a0aec0; line-height: 1.5; }
+
+  /* ── Stat boxes ── */
+  .stats { display: flex; gap: 16px; margin-top: 24px; }
+  .stat {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 20px 28px;
+    text-align: center;
+    flex: 1;
+  }
+  .stat-value { font-size: 36px; font-weight: 800; }
+  .stat-label { font-size: 13px; color: #718096; margin-top: 4px; }
+
+  /* ── Code block ── */
+  .code {
+    background: #0d1117;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 13px;
+    color: #76e4f7;
+    margin-top: 16px;
+    line-height: 1.6;
+  }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  th {
+    background: #1a1f2e; color: #f6ad55;
+    padding: 12px 16px; text-align: left;
+    font-size: 13px; font-weight: 700;
+    border-bottom: 2px solid #2d3748;
+  }
+  td {
+    padding: 12px 16px; font-size: 14px;
+    border-bottom: 1px solid #1a1f2e;
+    color: #e2e8f0;
+  }
+  tr:hover td { background: #1a1f2e; }
+
+  /* ── Check list ── */
+  .checklist { list-style: none; margin-top: 20px; }
+  .checklist li {
+    padding: 12px 0;
+    border-bottom: 1px solid #1a1f2e;
+    font-size: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .check-icon { font-size: 20px; }
+
+  /* ── Navigation ── */
+  .nav {
+    position: fixed; bottom: 28px; right: 36px;
+    display: flex; gap: 10px; align-items: center;
+    z-index: 100;
+  }
+  .nav button {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    color: #e2e8f0;
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    font-size: 18px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav button:hover { background: #2d3748; border-color: #f6ad55; }
+  .nav-count {
+    font-size: 13px; color: #718096;
+    min-width: 48px; text-align: center;
+  }
+
+  /* ── Progress bar ── */
+  .progress {
+    position: fixed; top: 0; left: 0;
+    height: 3px; background: linear-gradient(90deg, #f6ad55, #f687b3);
+    transition: width 0.3s ease;
+    z-index: 100;
+  }
+
+  /* ── Slide number ── */
+  .slide-num {
+    position: fixed; bottom: 32px; left: 36px;
+    font-size: 12px; color: #4a5568;
+  }
+
+  /* ── Final slide ── */
+  .slide-final {
+    background: linear-gradient(135deg, #0f1117 0%, #1a1f2e 50%, #0f1117 100%);
+    align-items: center; text-align: center;
+  }
+  .final-title {
+    font-size: 52px; font-weight: 800;
+    background: linear-gradient(90deg, #68d391, #76e4f7, #b794f4);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 24px;
+  }
+  .final-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin: 32px 0; width: 100%; max-width: 800px;
+  }
+  .final-card {
+    background: #1a1f2e; border: 1px solid #2d3748;
+    border-radius: 12px; padding: 20px;
+    font-size: 14px;
+  }
+  .final-card .emoji { font-size: 28px; margin-bottom: 8px; }
+  .final-card .tool { font-size: 15px; font-weight: 700; color: #f6ad55; }
+  .final-card .role { font-size: 12px; color: #718096; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="slide-num" id="slideNum"></div>
+
+<div class="slideshow">
+
+  <!-- ════════════════════════════════════════════ SLIDE 1 - Portada -->
+  <div class="slide slide-cover active">
+    <div class="logo-row">
+      <div class="logo-pill"><span>📊</span> Prometheus</div>
+      <div class="logo-pill"><span>📈</span> Grafana</div>
+      <div class="logo-pill"><span>📋</span> Loki</div>
+      <div class="logo-pill"><span>🔍</span> Tempo</div>
+      <div class="logo-pill"><span>⚙️</span> Tekton</div>
+      <div class="logo-pill"><span>🔄</span> ArgoCD</div>
+    </div>
+    <div class="cover-title">Stack de Observabilidad<br>en Kubernetes</div>
+    <div class="cover-sub">Métricas · Logs · Trazas distribuidas · CI/CD · GitOps</div>
+    <div class="cover-badge">🎓 Bootcamp DevOps — Kubernetes 2026</div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 2 - El Problema -->
+  <div class="slide">
+    <div class="slide-title">¿Por qué Observabilidad?</div>
+    <div class="slide-subtitle">En producción, necesitas saber qué está pasando — antes que el usuario lo reporte</div>
+    <div class="cards cards-3">
+      <div class="card">
+        <div class="card-icon">❓</div>
+        <div class="card-title orange">Sin observabilidad</div>
+        <div class="card-body">
+          "El sistema está lento."<br><br>
+          ¿Cuál pod? ¿Cuál nodo? ¿Cuál servicio? ¿Desde cuándo? ¿Es código o infraestructura?<br><br>
+          <strong style="color:#fc8181">No sabes por dónde empezar.</strong>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <div class="card-title blue">Los 3 pilares</div>
+        <div class="card-body">
+          <strong class="orange">Métricas:</strong> ¿Cómo se comporta el sistema? CPU, memoria, latencia<br><br>
+          <strong class="blue">Logs:</strong> ¿Qué ocurrió exactamente? Eventos y errores<br><br>
+          <strong class="purple">Trazas:</strong> ¿Cuánto tardó cada paso del request?
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-icon">✅</div>
+        <div class="card-title green">Con observabilidad</div>
+        <div class="card-body">
+          "El servicio X tiene latencia p99 de 8s desde las 14:30. El log muestra un error de conexión a BD. La traza muestra el cuello de botella."<br><br>
+          <strong class="green">Problema resuelto en minutos.</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 3 - Arquitectura -->
+  <div class="slide">
+    <div class="slide-title">Arquitectura del Stack</div>
+    <div class="slide-subtitle">Cluster Kubernetes v1.28 · 4 nodos · NFS storage · Namespace monitoring</div>
+    <div class="arch-box">
+      <div class="arch-row">
+        <div class="arch-pill" style="border-color:#68d391; color:#68d391">🖥️ Node Exporter<br><small>:9100 × 4 nodos</small></div>
+        <div class="arch-pill" style="border-color:#68d391; color:#68d391">📦 kube-state-metrics<br><small>estado del cluster</small></div>
+        <div class="arch-pill" style="border-color:#68d391; color:#68d391">⚙️ Tekton :9090<br><small>pipeline metrics</small></div>
+        <div class="arch-pill" style="border-color:#68d391; color:#68d391">🔄 ArgoCD :8082<br><small>app metrics</small></div>
+      </div>
+      <div class="arch-row"><div class="arch-arrow">↓ scrape</div></div>
+      <div class="arch-row">
+        <div class="arch-pill" style="border-color:#f6ad55; color:#f6ad55; font-size:16px; padding:14px 32px">📊 Prometheus :9090<br><small>NodePort :30900</small></div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-pill" style="border-color:#76e4f7; color:#76e4f7">📋 Loki :3100<br><small>log aggregation</small></div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-pill" style="border-color:#a0aec0; color:#a0aec0">🔦 Promtail<br><small>DaemonSet log shipper</small></div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-pill" style="border-color:#b794f4; color:#b794f4">🔍 Tempo :3200<br><small>OTLP :4317/4318</small></div>
+      </div>
+      <div class="arch-row"><div class="arch-arrow">↑ todas las fuentes</div></div>
+      <div class="arch-row">
+        <div class="arch-pill" style="border-color:#f687b3; color:#f687b3; font-size:16px; padding:14px 48px">📈 Grafana :3000<br><small>NodePort :30300 · Dashboards + Explore</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 4 - Las Herramientas -->
+  <div class="slide">
+    <div class="slide-title">Las Herramientas</div>
+    <div class="slide-subtitle">Cada componente tiene un rol específico en el stack</div>
+    <table>
+      <tr>
+        <th>Herramienta</th>
+        <th>Rol</th>
+        <th>Puerto</th>
+        <th>Tipo</th>
+      </tr>
+      <tr>
+        <td><span class="orange">📊 Prometheus</span></td>
+        <td>Recolección y almacenamiento de métricas por scraping</td>
+        <td class="blue">30900</td>
+        <td>NodePort</td>
+      </tr>
+      <tr>
+        <td><span class="pink">📈 Grafana</span></td>
+        <td>Visualización: dashboards, Explore, correlaciones</td>
+        <td class="blue">30300</td>
+        <td>NodePort</td>
+      </tr>
+      <tr>
+        <td><span class="blue">📋 Loki</span></td>
+        <td>Almacenamiento de logs (like Prometheus for logs)</td>
+        <td class="blue">3100</td>
+        <td>ClusterIP</td>
+      </tr>
+      <tr>
+        <td><span class="green">🔦 Promtail</span></td>
+        <td>Recolección de logs desde /var/log/pods en cada nodo</td>
+        <td class="blue">9080</td>
+        <td>DaemonSet</td>
+      </tr>
+      <tr>
+        <td><span class="purple">🔍 Tempo</span></td>
+        <td>Trazas distribuidas (OTLP, Jaeger, Zipkin)</td>
+        <td class="blue">3200 / 4317 / 4318</td>
+        <td>ClusterIP</td>
+      </tr>
+      <tr>
+        <td><span class="orange">⚙️ Tekton</span></td>
+        <td>CI/CD nativo en Kubernetes — Pipelines y Tasks</td>
+        <td class="blue">9090</td>
+        <td>Metrics</td>
+      </tr>
+      <tr>
+        <td><span class="green">🔄 ArgoCD</span></td>
+        <td>GitOps — sincronización automática GitHub → Cluster</td>
+        <td class="blue">8082–8084</td>
+        <td>Metrics</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 5 - Demo 1: Tekton -->
+  <div class="slide">
+    <div class="slide-title">Demo 1 — Tekton CI/CD Pipeline</div>
+    <div class="slide-subtitle">Pipeline automatizado: clonar código → build imagen Docker → push a registry</div>
+    <div class="cards cards-2">
+      <div>
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot" style="border-color:#68d391; background:#0d2818; color:#68d391">1</div>
+            <div class="timeline-content">
+              <div class="timeline-title green">Task: git-clone</div>
+              <div class="timeline-desc">Clona el repo <code>dguerrero11/page-public-demo</code> desde GitHub a un workspace compartido (PVC NFS)</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot" style="border-color:#f6ad55; background:#2d1500; color:#f6ad55">2</div>
+            <div class="timeline-content">
+              <div class="timeline-title orange">Task: build-push</div>
+              <div class="timeline-desc">Buildkit construye la imagen Docker dentro del cluster y hace push a Docker Hub como <code>dguerrero11/page-public-demo:latest</code></div>
+            </div>
+          </div>
+        </div>
+        <div class="stats" style="margin-top:28px">
+          <div class="stat">
+            <div class="stat-value green">7.8s</div>
+            <div class="stat-label">git-clone</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value orange">16.9s</div>
+            <div class="stat-label">build-push</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value blue">24s</div>
+            <div class="stat-label">total</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Pipeline definido en Kubernetes</div>
+        <div class="code">apiVersion: tekton.dev/v1<br>kind: Pipeline<br>metadata:<br>  name: build-and-deploy<br>spec:<br>  tasks:<br>    - name: git-clone<br>      taskRef:<br>        name: git-clone<br>    - name: build-push<br>      taskRef:<br>        name: buildkit-build<br>      runAfter: [git-clone]</div>
+        <div class="card-body" style="margin-top:16px">
+          🔐 Credenciales Docker Hub como <strong>Secret</strong><br>
+          📁 Workspace compartido via <strong>PVC NFS</strong><br>
+          🏷️ Namespace con PSA <strong>privileged</strong> para buildkit
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 6 - Demo 1: Traces -->
+  <div class="slide">
+    <div class="slide-title">Demo 1 — Trazas del Pipeline en Tempo</div>
+    <div class="slide-subtitle">Grafana → Explore → Tempo → TraceQL</div>
+    <div class="cards cards-2">
+      <div class="card">
+        <div class="card-title purple">Query en TraceQL</div>
+        <div class="code">{name="pipeline-build-and-deploy"}</div>
+        <div style="margin-top:20px">
+          <table>
+            <tr><th>Campo</th><th>Valor</th></tr>
+            <tr><td>Trace ID</td><td class="blue"><small>aabbccddeeff0011...</small></td></tr>
+            <tr><td>Servicio</td><td class="orange">tekton-pipelines-controller</td></tr>
+            <tr><td>Operación</td><td>pipeline-build-and-deploy</td></tr>
+            <tr><td>Duración</td><td class="green">16 segundos</td></tr>
+            <tr><td>Spans</td><td>1 span</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title orange">¿Qué muestra Tempo?</div>
+        <div class="card-body" style="margin-top:12px; line-height:2">
+          📍 El span de duración del pipeline completo<br>
+          ⏱️ Timeline visual de inicio a fin<br>
+          🏷️ Atributos del servicio y la operación<br>
+          🔗 Correlación posible con Loki (logs del mismo pod)<br><br>
+          <strong class="blue">Protocolo usado: OTLP gRPC (puerto 4317)</strong><br>
+          <strong class="green">Almacenamiento: local en /var/tempo/</strong>
+        </div>
+        <div style="margin-top:20px; background:#0d1117; border-radius:8px; padding:16px; text-align:center;">
+          <div style="font-size:13px; color:#718096; margin-bottom:8px">Timeline del span</div>
+          <div style="background: linear-gradient(90deg, #f6ad55, #f687b3); height:12px; border-radius:4px; width:100%"></div>
+          <div style="display:flex; justify-content:space-between; font-size:12px; color:#718096; margin-top:6px">
+            <span>0s</span><span>4s</span><span>8s</span><span>12s</span><span>16s</span>
+          </div>
+          <div style="font-size:13px; color:#f6ad55; margin-top:8px">tekton-pipelines-controller</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 7 - Demo 2: ArgoCD -->
+  <div class="slide">
+    <div class="slide-title">Demo 2 — GitOps con ArgoCD</div>
+    <div class="slide-subtitle">Un git push activa automáticamente el deploy en Kubernetes</div>
+    <div class="cards cards-2">
+      <div>
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot" style="border-color:#76e4f7; background:#0a1a2e; color:#76e4f7">1</div>
+            <div class="timeline-content">
+              <div class="timeline-title blue">Git Push</div>
+              <div class="timeline-desc">Modificamos <code>k8s/deployment.yaml</code> cambiando <code>replicas: 2</code> → <code>replicas: 3</code> y hacemos push a GitHub</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot" style="border-color:#f6ad55; background:#2d1500; color:#f6ad55">2</div>
+            <div class="timeline-content">
+              <div class="timeline-title orange">ArgoCD detecta el cambio</div>
+              <div class="timeline-desc">En segundos, ArgoCD compara el estado deseado (Git) con el estado actual (cluster) y detecta OutOfSync</div>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-dot" style="border-color:#68d391; background:#0d2818; color:#68d391">3</div>
+            <div class="timeline-content">
+              <div class="timeline-title green">Auto-Sync → Deploy</div>
+              <div class="timeline-desc">ArgoCD aplica el cambio automáticamente. Un 3er pod aparece en el namespace <code>demo</code>. Status: <strong>Synced + Healthy</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Application configurada en ArgoCD</div>
+        <div class="code">apiVersion: argoproj.io/v1alpha1<br>kind: Application<br>metadata:<br>  name: page-demo<br>spec:<br>  source:<br>    repoURL: github.com/dguerrero11/<br>             page-public-demo<br>    path: k8s/<br>    targetRevision: main<br>  destination:<br>    namespace: demo<br>  syncPolicy:<br>    automated:<br>      prune: true<br>      selfHeal: true</div>
+        <div style="margin-top:16px; display:flex; gap:12px">
+          <div style="flex:1; background:#0d2818; border:1px solid #276749; border-radius:8px; padding:14px; text-align:center">
+            <div class="green" style="font-size:24px; font-weight:800">✅ Synced</div>
+            <div style="font-size:12px; color:#718096; margin-top:4px">Estado Git</div>
+          </div>
+          <div style="flex:1; background:#0d2818; border:1px solid #276749; border-radius:8px; padding:14px; text-align:center">
+            <div class="green" style="font-size:24px; font-weight:800">💚 Healthy</div>
+            <div style="font-size:12px; color:#718096; margin-top:4px">Estado pods</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 8 - Demo 3: Dashboards -->
+  <div class="slide">
+    <div class="slide-title">Demo 3 — Grafana Dashboards</div>
+    <div class="slide-subtitle">Métricas de ArgoCD y Tekton en tiempo real desde Prometheus</div>
+    <div class="cards cards-2">
+      <div class="card">
+        <div class="card-title">📊 Dashboard ArgoCD</div>
+        <div class="card-body">
+          <table style="margin-top:8px">
+            <tr><th>Panel</th><th>Valor</th></tr>
+            <tr><td>Apps Sincronizadas</td><td class="green">1</td></tr>
+            <tr><td>Apps OutOfSync</td><td class="green">0</td></tr>
+            <tr><td>Apps Healthy</td><td class="green">1</td></tr>
+            <tr><td>Apps Degraded</td><td class="green">0</td></tr>
+          </table>
+          <div style="margin-top:16px; padding:12px; background:#0f1117; border-radius:8px; font-size:13px; color:#a0aec0">
+            📈 <strong class="orange">Sync Operations Rate:</strong> Pico visible a las 18:05 — exactamente cuando hicimos el git push<br><br>
+            🌐 <strong class="blue">Git Request Duration p99:</strong> Latencia de ArgoCD a GitHub (~1s)
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Dashboard Tekton</div>
+        <div class="card-body">
+          <table style="margin-top:8px">
+            <tr><th>Panel</th><th>Valor</th></tr>
+            <tr><td>PipelineRuns Totales</td><td class="orange">2</td></tr>
+            <tr><td>TaskRuns Totales</td><td class="orange">2</td></tr>
+            <tr><td>Heap Alloc Controller</td><td class="blue">18.2 MiB</td></tr>
+            <tr><td>Work Queue Depth</td><td class="green">0</td></tr>
+          </table>
+          <div style="margin-top:16px; padding:12px; background:#0f1117; border-radius:8px; font-size:13px; color:#a0aec0">
+            ⏱️ <strong class="orange">Duración TaskRuns:</strong> git-clone 7.8s / build-push 16.9s<br><br>
+            📊 <strong class="purple">WorkQueue Add Rate:</strong> Picos al ejecutar PipelineRuns
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:20px; padding:16px; background:#1a1f2e; border-radius:10px; border:1px solid #2d3748; font-size:14px; color:#a0aec0">
+      💡 Dashboards provisioned automáticamente desde <strong class="blue">ConfigMap</strong> — se recargan sin reiniciar Grafana
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 9 - Demo 4: Trazas HTTP -->
+  <div class="slide">
+    <div class="slide-title">Demo 4 — Tráfico Real + Trazas en Tempo</div>
+    <div class="slide-subtitle">Generador de carga instrumentado con OpenTelemetry → Tempo → Grafana</div>
+    <div class="cards cards-2">
+      <div class="card">
+        <div class="card-title">🚀 Traffic Generator (Kubernetes Job)</div>
+        <div class="code">from opentelemetry import trace<br>from opentelemetry.exporter.otlp.proto.http \<br>     .trace_exporter import OTLPSpanExporter<br><br>exporter = OTLPSpanExporter(<br>  endpoint="http://tempo.monitoring.svc<br>           :4318/v1/traces"<br>)<br><br>for i in range(20):<br>  with tracer.start_as_current_span("GET /"):<br>    r = requests.get("http://page-demo.demo.svc")<br>    span.set_attribute("http.status_code", r.status_code)</div>
+        <div class="card-body" style="margin-top:14px">
+          🐍 Python + OpenTelemetry SDK<br>
+          📡 OTLP HTTP → Tempo :4318<br>
+          🎯 20 requests · cada 2 segundos
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title green">Resultado en Tempo</div>
+          <div class="card-body" style="margin-top:8px">
+            <strong class="blue">20 trazas</strong> en Grafana → Explore → Tempo<br>
+            Duración por request: <strong class="green">2–8ms</strong><br>
+            Service: <strong class="orange">page-demo-traffic</strong>
+          </div>
+          <div class="code" style="margin-top:12px">{resource.service.name="page-demo-traffic"}</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Atributos por trace</div>
+          <div class="card-body">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px">
+              <div style="background:#0f1117; padding:8px; border-radius:6px; font-size:13px">
+                <span class="blue">http.status_code</span><br>
+                <span class="green">200</span>
+              </div>
+              <div style="background:#0f1117; padding:8px; border-radius:6px; font-size:13px">
+                <span class="blue">http.url</span><br>
+                <span class="orange" style="font-size:11px">page-demo.demo.svc</span>
+              </div>
+              <div style="background:#0f1117; padding:8px; border-radius:6px; font-size:13px">
+                <span class="blue">request.number</span><br>
+                <span class="purple">1 → 20</span>
+              </div>
+              <div style="background:#0f1117; padding:8px; border-radius:6px; font-size:13px">
+                <span class="blue">sdk.language</span><br>
+                <span class="green">python</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 10 - Loki Logs -->
+  <div class="slide">
+    <div class="slide-title">Logs en Loki — Todo el Cluster Centralizado</div>
+    <div class="slide-subtitle">Promtail recolecta logs de todos los pods automáticamente · Retención 7 días</div>
+    <div class="cards cards-2">
+      <div class="card">
+        <div class="card-title">🔦 Cómo funciona Promtail</div>
+        <div class="card-body">
+          <ol style="padding-left:20px; line-height:2.2">
+            <li>DaemonSet en <strong class="blue">cada nodo</strong> del cluster</li>
+            <li>Lee <code>/var/log/pods/*/*/*.log</code></li>
+            <li>Parsea formato <strong class="orange">CRI (containerd)</strong></li>
+            <li>Extrae labels: <strong class="green">namespace, pod, container</strong></li>
+            <li>Envía a Loki en tiempo real</li>
+          </ol>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔍 Queries en Grafana Explore</div>
+        <div class="code"># Logs de ArgoCD<br>{namespace="argocd"}<br><br># Logs del pipeline de Tekton<br>{namespace="tekton-pipelines"}<br><br># Errores en todo el cluster<br>{job="kubernetes-pods"} |= "error"<br><br># Logs de la demo app<br>{namespace="demo", pod=~"page-demo.*"}</div>
+        <div class="card-body" style="margin-top:14px">
+          📊 Volume chart muestra <strong class="orange">actividad de logs en el tiempo</strong><br>
+          🔗 Correlación con Tempo via <strong class="purple">TraceID</strong> en logs
+        </div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value blue">4</div>
+        <div class="stat-label">Nodos monitoreados</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value orange">7d</div>
+        <div class="stat-label">Retención de logs</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value green">5Gi</div>
+        <div class="stat-label">Storage en NFS</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value purple">v13</div>
+        <div class="stat-label">Schema TSDB</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 11 - Alertamiento -->
+  <div class="slide">
+    <div class="slide-title">Demo 5 — Alertamiento con AlertManager</div>
+    <div class="slide-subtitle">Prometheus detecta condiciones → AlertManager enruta → Slack / Email / PagerDuty</div>
+    <div class="cards cards-2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title">⚠️ Reglas de Alerta configuradas</div>
+          <table style="margin-top:8px">
+            <tr><th>Alerta</th><th>Condición</th><th>Severidad</th></tr>
+            <tr>
+              <td class="orange">TektonPipelineFailed</td>
+              <td style="font-size:12px">pipelinerun_total{status="failed"} &gt; 0</td>
+              <td><span style="color:#f6ad55">⚠ warning</span></td>
+            </tr>
+            <tr>
+              <td class="orange">ArgoAppOutOfSync</td>
+              <td style="font-size:12px">argocd_app_info{sync_status="OutOfSync"}</td>
+              <td><span style="color:#f6ad55">⚠ warning</span></td>
+            </tr>
+            <tr>
+              <td class="pink">DeploymentUnavailable</td>
+              <td style="font-size:12px">replicas_available &lt; replicas_desired</td>
+              <td><span style="color:#fc8181">🔴 critical</span></td>
+            </tr>
+            <tr>
+              <td class="pink">PodCrashLooping</td>
+              <td style="font-size:12px">restarts &gt; 3 en 15 minutos</td>
+              <td><span style="color:#fc8181">🔴 critical</span></td>
+            </tr>
+            <tr>
+              <td class="orange">ArgoAppDegraded</td>
+              <td style="font-size:12px">argocd_app_info{health_status="Degraded"}</td>
+              <td><span style="color:#fc8181">🔴 critical</span></td>
+            </tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title blue">AlertManager UI</div>
+          <div class="code">http://192.168.109.142:30903</div>
+          <div class="card-body" style="margin-top:10px">
+            Agrupa alertas · Silencia · Inhibe<br>
+            Envía a Slack / Email / PagerDuty
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-title green">🧪 Ejercicio — Disparar una alerta</div>
+          <div class="code"># 1. Escalar la app a 0 réplicas<br>kubectl scale deployment page-demo \<br>  -n demo --replicas=0<br><br># 2. Esperar ~1 minuto y ver en:<br># http://192.168.109.142:30900<br># Alerts → DeploymentUnavailable 🔴<br># http://192.168.109.142:30903<br># AlertManager → alerta activa<br><br># 3. Restaurar<br>kubectl scale deployment page-demo \<br>  -n demo --replicas=3</div>
+        </div>
+        <div class="card">
+          <div class="card-title purple">Flujo completo</div>
+          <div class="timeline" style="margin-top:8px">
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#68d391; background:#0d2818; color:#68d391; width:28px; height:28px; font-size:12px">1</div>
+              <div class="timeline-content">
+                <div class="timeline-title" style="font-size:14px">Prometheus evalúa reglas cada 15s</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#f6ad55; background:#2d1500; color:#f6ad55; width:28px; height:28px; font-size:12px">2</div>
+              <div class="timeline-content">
+                <div class="timeline-title" style="font-size:14px">Condición cumplida → estado FIRING</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#b794f4; background:#1a0d2e; color:#b794f4; width:28px; height:28px; font-size:12px">3</div>
+              <div class="timeline-content">
+                <div class="timeline-title" style="font-size:14px">AlertManager agrupa y enruta</div>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#76e4f7; background:#0a1a2e; color:#76e4f7; width:28px; height:28px; font-size:12px">4</div>
+              <div class="timeline-content">
+                <div class="timeline-title" style="font-size:14px">Notificación → Slack / Email 📱</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 11 - Lecciones -->
+  <div class="slide">
+    <div class="slide-title">Lecciones Aprendidas</div>
+    <div class="slide-subtitle">Problemas reales encontrados y resueltos durante el bootcamp</div>
+    <div class="cards cards-2">
+      <div>
+        <ul class="checklist">
+          <li>
+            <span class="check-icon">🔴→✅</span>
+            <div>
+              <strong class="orange">Grafana CrashLoopBackOff (subPath)</strong><br>
+              <span style="font-size:13px; color:#718096">No se puede montar con subPath dentro de un directorio ya montado. Solución: un solo ConfigMap con todos los dashboards.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔴→✅</span>
+            <div>
+              <strong class="orange">Tempo crash — mountPath /tempo</strong><br>
+              <span style="font-size:13px; color:#718096">/tempo ES el binario ejecutable. Solución: usar /var/tempo y emptyDir en vez de PVC NFS.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔴→✅</span>
+            <div>
+              <strong class="orange">Promtail sin logs ("no files to tail")</strong><br>
+              <span style="font-size:13px; color:#718096">kubernetes_sd con NODE_NAME regex no filtraba. Solución: static_configs con glob directo /var/log/pods/*/*/*.log</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <ul class="checklist">
+          <li>
+            <span class="check-icon">🔴→✅</span>
+            <div>
+              <strong class="orange">Tekton PodSecurity violation</strong><br>
+              <span style="font-size:13px; color:#718096">Namespace en modo restricted bloqueaba buildkit. Solución: label pod-security.kubernetes.io/enforce=privileged</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔴→✅</span>
+            <div>
+              <strong class="orange">Métricas Tekton con nombre incorrecto</strong><br>
+              <span style="font-size:13px; color:#718096">Tekton usa prefijo tekton_pipelines_controller_*, no tekton_*. Detectado via port-forward al pod distroless.</span>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔴→✅</span>
+            <div>
+              <strong class="orange">GitHub bloqueó push con secrets</strong><br>
+              <span style="font-size:13px; color:#718096">Docker PAT en README.md detectado por secret scanning. Solución: borrar credencial, crear nueva, filtrar del historial.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════ SLIDE 12 - Final -->
+  <div class="slide slide-final">
+    <div class="final-title">Stack Completo ✅</div>
+    <div style="font-size:18px; color:#718096; margin-bottom:28px">
+      Observabilidad end-to-end en Kubernetes — producción-ready
+    </div>
+    <div class="final-grid">
+      <div class="final-card">
+        <div class="emoji">📊</div>
+        <div class="tool">Prometheus</div>
+        <div class="role">Métricas del cluster</div>
+      </div>
+      <div class="final-card">
+        <div class="emoji">📈</div>
+        <div class="tool">Grafana</div>
+        <div class="role">Dashboards + Explore</div>
+      </div>
+      <div class="final-card">
+        <div class="emoji">📋</div>
+        <div class="tool">Loki</div>
+        <div class="role">Logs centralizados</div>
+      </div>
+      <div class="final-card">
+        <div class="emoji">🔦</div>
+        <div class="tool">Promtail</div>
+        <div class="role">Log shipper DaemonSet</div>
+      </div>
+      <div class="final-card">
+        <div class="emoji">🔍</div>
+        <div class="tool">Tempo</div>
+        <div class="role">Trazas distribuidas</div>
+      </div>
+      <div class="final-card">
+        <div class="emoji">⚙️</div>
+        <div class="tool">Tekton</div>
+        <div class="role">CI/CD en Kubernetes</div>
+      </div>
+    </div>
+    <div class="final-grid" style="max-width:900px; grid-template-columns: repeat(2,1fr); margin-top:0">
+      <div style="background:#1a1f2e; border:1px solid #276749; border-radius:12px; padding:14px 20px; font-size:14px; color:#68d391; text-align:left">
+        ✅ Demo 1 — Tekton CI/CD Pipeline + Trazas Tempo
+      </div>
+      <div style="background:#1a1f2e; border:1px solid #276749; border-radius:12px; padding:14px 20px; font-size:14px; color:#68d391; text-align:left">
+        ✅ Demo 2 — ArgoCD GitOps → Auto-deploy
+      </div>
+      <div style="background:#1a1f2e; border:1px solid #276749; border-radius:12px; padding:14px 20px; font-size:14px; color:#68d391; text-align:left">
+        ✅ Demo 3 — Grafana Dashboards (ArgoCD + Tekton)
+      </div>
+      <div style="background:#1a1f2e; border:1px solid #276749; border-radius:12px; padding:14px 20px; font-size:14px; color:#68d391; text-align:left">
+        ✅ Demo 4 — Tráfico HTTP real → Trazas en Tempo
+      </div>
+      <div style="background:#1a1f2e; border:1px solid #276749; border-radius:12px; padding:14px 20px; font-size:14px; color:#68d391; text-align:left; grid-column: span 2">
+        ✅ Demo 5 — Alertamiento con Prometheus + AlertManager
+      </div>
+    </div>
+    <div style="background:#1a1f2e; border:1px solid #2d3748; border-radius:16px; padding:20px 40px; font-size:15px; color:#a0aec0; max-width:600px; margin-top:16px">
+      🎓 <strong class="orange">Bootcamp DevOps 2026</strong><br>
+      <span style="font-size:13px">github.com/dguerrero11/k8s-final</span>
+    </div>
+    <div style="margin-top:24px; font-size:22px; color:#4a5568">¿Preguntas?</div>
+  </div>
+
+</div>
+
+<!-- ── Navegación ── -->
+<div class="nav">
+  <button onclick="prevSlide()">‹</button>
+  <div class="nav-count" id="navCount"></div>
+  <button onclick="nextSlide()">›</button>
+</div>
+
+<script>
+  let current = 0;
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+
+  function update() {
+    slides.forEach((s, i) => s.classList.toggle('active', i === current));
+    document.getElementById('navCount').textContent = `${current + 1} / ${total}`;
+    document.getElementById('slideNum').textContent = `Slide ${current + 1} de ${total}`;
+    document.getElementById('progress').style.width = `${((current + 1) / total) * 100}%`;
+  }
+
+  function nextSlide() { if (current < total - 1) { current++; update(); } }
+  function prevSlide() { if (current > 0) { current--; update(); } }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') nextSlide();
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevSlide();
+  });
+
+  update();
+</script>
+</body>
+</html>
