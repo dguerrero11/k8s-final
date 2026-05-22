@@ -1025,7 +1025,118 @@ kubectl logs -n tekton-pipelines \
   </div>
 </div>
 
-<!-- ══════════════════════ 21. FINAL -->
+<!-- ══════════════════════ 21. DASHBOARDS COMUNITARIOS -->
+<div class="slide">
+  <div class="section-badge" style="color:#76e4f7">📦 Grafana → Import</div>
+  <div class="slide-title">Dashboards Listos para Importar</div>
+  <div class="slide-sub">Grafana → Home → Dashboards → Import → pegar ID → Load → seleccionar datasource → Import</div>
+  <div class="cards cards-2" style="gap:14px">
+    <div>
+      <table style="font-size:12px">
+        <tr><th>ID</th><th>Dashboard</th><th>Datasource</th></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">1860</span></td><td><span class="green">Node Exporter Full</span><br><span style="color:#4a5568;font-size:11px">CPU, RAM, disco, red, carga por nodo</span></td><td class="blue">Prometheus</td></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">15520</span></td><td><span class="green">K8s All-in-one Monitoring</span><br><span style="color:#4a5568;font-size:11px">Pods, nodos, namespaces, recursos</span></td><td class="blue">Prometheus</td></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">8588</span></td><td><span class="green">K8s Deployments / Daemonsets</span><br><span style="color:#4a5568;font-size:11px">Estado de workloads por namespace</span></td><td class="blue">Prometheus</td></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">6417</span></td><td><span class="green">Kubernetes Cluster Overview</span><br><span style="color:#4a5568;font-size:11px">Vista clásica de cluster completo</span></td><td class="blue">Prometheus</td></tr>
+      </table>
+    </div>
+    <div>
+      <table style="font-size:12px">
+        <tr><th>ID</th><th>Dashboard</th><th>Datasource</th></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">15141</span></td><td><span class="pink">Loki Quick Search</span><br><span style="color:#4a5568;font-size:11px">Filtros por namespace, pod y nivel</span></td><td class="pink">Loki</td></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">13639</span></td><td><span class="pink">Logs / App</span><br><span style="color:#4a5568;font-size:11px">Explorador de logs por aplicación</span></td><td class="pink">Loki</td></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">9578</span></td><td><span class="purple">AlertManager Overview</span><br><span style="color:#4a5568;font-size:11px">Alertas activas, silenciadas, notificaciones</span></td><td class="blue">Prometheus</td></tr>
+        <tr><td><span class="orange" style="font-weight:700;font-size:14px">14584</span></td><td><span class="purple">ArgoCD</span><br><span style="color:#4a5568;font-size:11px">Sync/health apps, git requests</span></td><td class="blue">Prometheus</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="alert-box" style="margin-top:14px">
+    💡 <strong>Orden recomendado para clase:</strong>
+    &nbsp;<span class="orange">1860</span> Node Exporter →
+    &nbsp;<span class="orange">15520</span> K8s All-in-one →
+    &nbsp;<span class="orange">8588</span> Deployments →
+    &nbsp;<span class="pink">15141</span> Loki →
+    &nbsp;<span class="purple">9578</span> AlertManager →
+    &nbsp;<span class="purple">14584</span> ArgoCD
+  </div>
+  <div class="warn-box" style="margin-top:10px">
+    ⚙️ Al importar, asegúrate de seleccionar el datasource correcto en el dropdown — Prometheus para métricas, Loki para logs.
+  </div>
+</div>
+
+<!-- ══════════════════════ 22. QUERIES EXPLORE -->
+<div class="slide">
+  <div class="section-badge" style="color:#68d391">🔍 Grafana → Explore → Code</div>
+  <div class="slide-title">Queries de Diagnóstico — Explore</div>
+  <div class="slide-sub">Pegar en Grafana → Explore → seleccionar datasource → Code → ejecutar</div>
+  <div class="two-col" style="gap:16px;align-items:start">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card" style="padding:14px">
+        <div class="card-title green">¿Qué pod consume más CPU?</div>
+        <div class="code" style="font-size:11px;margin-top:6px">topk(10,
+  sum by(namespace, pod) (
+    rate(container_cpu_usage_seconds_total{
+      container!="",container!="POD"}[2m])
+  )
+)</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title green">¿Qué pod consume más RAM?</div>
+        <div class="code" style="font-size:11px;margin-top:6px">topk(10,
+  sum by(namespace, pod) (
+    container_memory_working_set_bytes{
+      container!="",container!="POD"}
+  )
+)</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title orange">¿Pods en CrashLoopBackOff?</div>
+        <div class="code" style="font-size:11px;margin-top:6px">increase(
+  kube_pod_container_status_restarts_total[15m]
+) > 3</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title orange">¿Deployments sin réplicas?</div>
+        <div class="code" style="font-size:11px;margin-top:6px">kube_deployment_status_replicas_available
+  &lt;
+kube_deployment_spec_replicas</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="card" style="padding:14px">
+        <div class="card-title blue">¿Disco libre por nodo?</div>
+        <div class="code" style="font-size:11px;margin-top:6px">100 - (
+  node_filesystem_avail_bytes{
+    mountpoint="/",fstype!="tmpfs"}
+  / node_filesystem_size_bytes{
+    mountpoint="/",fstype!="tmpfs"}
+  * 100
+)</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title blue">¿Nodo con menos RAM libre?</div>
+        <div class="code" style="font-size:11px;margin-top:6px">bottomk(4,
+  node_memory_MemAvailable_bytes
+  / node_memory_MemTotal_bytes * 100
+)</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title pink" style="font-size:13px">Logs de errores — namespace demo <span style="color:#4a5568;font-size:10px">[Loki]</span></div>
+        <div class="code" style="font-size:11px;margin-top:6px">{namespace="demo"}
+  |~ "(?i)(error|exception|fatal)"</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div class="card-title pink" style="font-size:13px">Tasa de errores por namespace <span style="color:#4a5568;font-size:10px">[Loki]</span></div>
+        <div class="code" style="font-size:11px;margin-top:6px">sum by(namespace) (
+  rate({namespace=~".+"}
+    |~ "(?i)(error|exception)" [1m])
+)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 23. FINAL -->
 <div class="slide slide-final">
   <div class="final-title">Stack Completo ✅</div>
   <div style="font-size:17px;color:#718096;margin-bottom:24px">Observabilidad end-to-end + CI/CD + GitOps en Kubernetes</div>
