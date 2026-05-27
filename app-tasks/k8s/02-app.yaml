@@ -1,0 +1,109 @@
+# ══════════════════════════════════════════════════════════════════════════
+# Task Manager App — Deployment + Service
+# Imagen: docker.io/<TU_DOCKERHUB_USER>/tasks-api:latest
+# ══════════════════════════════════════════════════════════════════════════
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tasks-api
+  namespace: tasks
+  labels:
+    app: tasks-api
+    version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tasks-api
+  template:
+    metadata:
+      labels:
+        app: tasks-api
+        version: "1.0.0"
+      annotations:
+        # Prometheus scrapeará /metrics automáticamente
+        prometheus.io/scrape: "true"
+        prometheus.io/port:   "8080"
+        prometheus.io/path:   "/metrics"
+    spec:
+      securityContext:
+        runAsUser:    1001
+        runAsNonRoot: true
+        fsGroup:      1001
+      containers:
+        - name: tasks-api
+          # ── REEMPLAZA con tu imagen de Docker Hub ──────────────────────
+          image: docker.io/DOCKERHUB_USER/tasks-api:latest
+          # ──────────────────────────────────────────────────────────────
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            # Base de datos
+            - name: DB_HOST
+              value: "postgres.tasks.svc"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            # OpenTelemetry → Tempo
+            - name: OTLP_ENDPOINT
+              value: "http://tempo.monitoring.svc:4318/v1/traces"
+            - name: SERVICE_NAME
+              value: "tasks-api"
+            - name: APP_VERSION
+              value: "1.0.0"
+            - name: APP_ENV
+              value: "production"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu:    50m
+              memory: 128Mi
+            limits:
+              cpu:    200m
+              memory: 256Mi
+
+---
+# NodePort para acceso desde el browser
+apiVersion: v1
+kind: Service
+metadata:
+  name: tasks-api
+  namespace: tasks
+  labels:
+    app: tasks-api
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30880
+  selector:
+    app: tasks-api

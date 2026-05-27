@@ -1,0 +1,135 @@
+# ══════════════════════════════════════════════════════════════════════════
+# PostgreSQL — Base de datos persistente para Task Manager
+# PVC: 2Gi en NFS (storageClass nfs-csi)
+# ══════════════════════════════════════════════════════════════════════════
+---
+# Credenciales — en producción usar Sealed Secrets o Vault
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: tasks
+type: Opaque
+stringData:
+  POSTGRES_DB:       tasksdb
+  POSTGRES_USER:     tasksuser
+  POSTGRES_PASSWORD: taskspass2026
+
+---
+# Script de inicialización — crea la tabla tasks al primer arranque
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: tasks
+data:
+  init.sql: |
+    CREATE TABLE IF NOT EXISTS tasks (
+      id         SERIAL PRIMARY KEY,
+      title      TEXT        NOT NULL,
+      done       BOOLEAN     NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    -- Datos de ejemplo para el demo
+    INSERT INTO tasks (title) VALUES
+      ('Configurar namespace tasks'),
+      ('Desplegar PostgreSQL con PVC'),
+      ('Instrumentar app con OpenTelemetry'),
+      ('Ver trazas en Grafana → Tempo'),
+      ('Crear pipeline de Tekton'),
+      ('Configurar ArgoCD GitOps')
+    ON CONFLICT DO NOTHING;
+
+---
+# Volumen persistente — 2Gi en NFS
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: tasks
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs-csi
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: tasks
+  labels:
+    app: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+      annotations:
+        # Prometheus scrapeará métricas de postgres si se añade exporter
+        prometheus.io/scrape: "false"
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "tasksuser", "-d", "tasksdb"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "tasksuser", "-d", "tasksdb"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu:    100m
+              memory: 256Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: init
+          configMap:
+            name: postgres-init
+
+---
+# ClusterIP — accesible como postgres.tasks.svc:5432
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: tasks
+  labels:
+    app: postgres
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgres

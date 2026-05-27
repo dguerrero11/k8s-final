@@ -1,0 +1,53 @@
+# ══════════════════════════════════════════════════════════════════════════
+# ArgoCD Application — Task Manager
+#
+# GitOps: cualquier push a app-tasks/k8s/ → ArgoCD detecta el diff
+#         y sincroniza automáticamente al cluster.
+#
+# Aplicar:
+#   kubectl apply -f argocd/app-tasks.yaml
+# ══════════════════════════════════════════════════════════════════════════
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tasks-api
+  namespace: argocd
+  labels:
+    app: tasks-api
+    team: bootcamp
+spec:
+  project: default
+
+  # ── Fuente: repo Git ───────────────────────────────────────────────────
+  source:
+    repoURL:        https://github.com/dguerrero11/k8s-final
+    targetRevision: main
+    path:           app-tasks/k8s   # todos los YAMLs del namespace tasks
+
+  # ── Destino: cluster local ─────────────────────────────────────────────
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: tasks
+
+  # ── Política de sincronización ─────────────────────────────────────────
+  syncPolicy:
+    automated:
+      prune:    true   # elimina recursos que ya no están en git
+      selfHeal: true   # revierte cambios manuales en el cluster
+    syncOptions:
+      - CreateNamespace=true     # crea el namespace si no existe
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 3
+      backoff:
+        duration:    5s
+        factor:      2
+        maxDuration: 3m
+
+  # ── Health checks personalizados ───────────────────────────────────────
+  ignoreDifferences:
+    - group: apps
+      kind:  Deployment
+      jsonPointers:
+        - /spec/replicas   # ignorar cambios manuales de replicas

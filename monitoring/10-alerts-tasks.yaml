@@ -1,0 +1,174 @@
+# ══════════════════════════════════════════════════════════════════════════
+# Alertas — Task Manager (namespace: tasks)
+# Cubre: app caída, DB caída, alta latencia, tasa de errores, disco DB
+# ══════════════════════════════════════════════════════════════════════════
+---
+# Añadir estas reglas al ConfigMap existente de Prometheus:
+#   kubectl apply -f monitoring/03-prometheus.yaml
+#   kubectl rollout restart deployment/prometheus -n monitoring
+#
+# O añadir manualmente a rules.yml en el ConfigMap prometheus-config:
+#
+# El bloque siguiente es para referencia — las reglas deben ir en
+# monitoring/03-prometheus.yaml dentro del key rules.yml
+
+# ── PrometheusRule (si usas el Prometheus Operator) ──────────────────────
+# Si no usas Operator, ver instrucciones abajo para añadir a rules.yml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tasks-alert-rules
+  namespace: monitoring
+  labels:
+    # Etiqueta para que Prometheus cargue este ConfigMap como reglas
+    prometheus: tasks-rules
+data:
+  tasks-rules.yml: |
+    groups:
+
+      # ── App: Task Manager ───────────────────────────────────────────────
+      - name: tasks-app-alerts
+        rules:
+
+          # App caída — ninguna réplica disponible
+          - alert: TasksApiDown
+            expr: |
+              kube_deployment_status_replicas_available{
+                namespace="tasks", deployment="tasks-api"
+              } == 0
+            for: 1m
+            labels:
+              severity: critical
+              team:     platform
+              app:      tasks-api
+            annotations:
+              summary:     "Task Manager sin réplicas disponibles"
+              description: "El deployment tasks-api en namespace tasks tiene 0 réplicas disponibles."
+
+          # Réplicas insuficientes
+          - alert: TasksApiReplicasMissing
+            expr: |
+              kube_deployment_status_replicas_available{
+                namespace="tasks", deployment="tasks-api"
+              } < kube_deployment_spec_replicas{
+                namespace="tasks", deployment="tasks-api"
+              }
+            for: 2m
+            labels:
+              severity: warning
+              team:     platform
+              app:      tasks-api
+            annotations:
+              summary:     "Task Manager con réplicas incompletas"
+              description: "Solo {{ $value }} réplicas disponibles de {{ $labels.replicas }} esperadas."
+
+          # Alta tasa de errores HTTP 5xx (métricas de prometheus-flask-exporter)
+          - alert: TasksApiHighErrorRate
+            expr: |
+              rate(flask_http_request_total{
+                namespace="tasks", status=~"5.."
+              }[5m])
+              /
+              rate(flask_http_request_total{namespace="tasks"}[5m])
+              > 0.05
+            for: 2m
+            labels:
+              severity: warning
+              team:     platform
+              app:      tasks-api
+            annotations:
+              summary:     "Task Manager: tasa de errores > 5%"
+              description: "Tasa de errores HTTP 5xx: {{ $value | humanizePercentage }} en los últimos 5 minutos."
+
+          # Alta latencia de respuesta p99
+          - alert: TasksApiHighLatency
+            expr: |
+              histogram_quantile(0.99,
+                rate(flask_http_request_duration_seconds_bucket{
+                  namespace="tasks"
+                }[5m])
+              ) > 1.0
+            for: 2m
+            labels:
+              severity: warning
+              team:     platform
+              app:      tasks-api
+            annotations:
+              summary:     "Task Manager: latencia p99 > 1 segundo"
+              description: "La latencia p99 es {{ $value | humanizeDuration }}."
+
+          # Pod en CrashLoop
+          - alert: TasksApiCrashLoop
+            expr: |
+              increase(kube_pod_container_status_restarts_total{
+                namespace="tasks", container="tasks-api"
+              }[15m]) > 3
+            for: 0m
+            labels:
+              severity: critical
+              team:     platform
+              app:      tasks-api
+            annotations:
+              summary:     "Task Manager pod en CrashLoopBackOff"
+              description: "{{ $labels.pod }} reinició {{ $value | humanize }} veces en 15 minutos."
+
+      # ── Base de datos: PostgreSQL ────────────────────────────────────────
+      - name: tasks-db-alerts
+        rules:
+
+          # PostgreSQL caído
+          - alert: TasksPostgresDown
+            expr: |
+              kube_statefulset_status_replicas_ready{
+                namespace="tasks", statefulset="postgres"
+              } == 0
+            for: 1m
+            labels:
+              severity: critical
+              team:     platform
+              app:      postgres
+            annotations:
+              summary:     "PostgreSQL de Task Manager caído"
+              description: "El StatefulSet postgres en namespace tasks no tiene réplicas listas."
+
+          # PVC con más del 80% de uso (requiere node-exporter + kubelet metrics)
+          - alert: TasksPostgresDiskHigh
+            expr: |
+              (
+                kubelet_volume_stats_used_bytes{
+                  namespace="tasks", persistentvolumeclaim="postgres-pvc"
+                }
+                /
+                kubelet_volume_stats_capacity_bytes{
+                  namespace="tasks", persistentvolumeclaim="postgres-pvc"
+                }
+              ) > 0.80
+            for: 5m
+            labels:
+              severity: warning
+              team:     platform
+              app:      postgres
+            annotations:
+              summary:     "PostgreSQL: disco > 80%"
+              description: "El PVC postgres-pvc usa {{ $value | humanizePercentage }} de su capacidad."
+
+          # PVC con más del 90% — crítico
+          - alert: TasksPostgresDiskCritical
+            expr: |
+              (
+                kubelet_volume_stats_used_bytes{
+                  namespace="tasks", persistentvolumeclaim="postgres-pvc"
+                }
+                /
+                kubelet_volume_stats_capacity_bytes{
+                  namespace="tasks", persistentvolumeclaim="postgres-pvc"
+                }
+              ) > 0.90
+            for: 2m
+            labels:
+              severity: critical
+              team:     platform
+              app:      postgres
+            annotations:
+              summary:     "PostgreSQL: disco > 90% — CRÍTICO"
+              description: "El PVC postgres-pvc usa {{ $value | humanizePercentage }}. Ampliar inmediatamente."

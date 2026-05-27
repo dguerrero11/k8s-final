@@ -192,6 +192,53 @@ data:
               summary: "App ArgoCD degradada"
               description: "La app '{{ $labels.name }}' tiene estado de salud Degraded"
 
+      # ── Task Manager App ───────────────────────────────────────────────────
+      - name: tasks-app-alerts
+        rules:
+          - alert: TasksApiDown
+            expr: kube_deployment_status_replicas_available{namespace="tasks",deployment="tasks-api"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "Task Manager sin réplicas"
+              description: "tasks-api en namespace tasks tiene 0 réplicas disponibles"
+
+          - alert: TasksPostgresDown
+            expr: kube_statefulset_status_replicas_ready{namespace="tasks",statefulset="postgres"} == 0
+            for: 1m
+            labels:
+              severity: critical
+              team: platform
+            annotations:
+              summary: "PostgreSQL de Task Manager caído"
+              description: "El StatefulSet postgres en namespace tasks no tiene réplicas listas"
+
+          - alert: TasksApiHighErrorRate
+            expr: |
+              rate(flask_http_request_total{namespace="tasks",status=~"5.."}[5m])
+              / rate(flask_http_request_total{namespace="tasks"}[5m]) > 0.05
+            for: 2m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "Task Manager: errores HTTP > 5%"
+              description: "Tasa de errores 5xx: {{ $value | humanizePercentage }}"
+
+          - alert: TasksPostgresDiskHigh
+            expr: |
+              kubelet_volume_stats_used_bytes{namespace="tasks",persistentvolumeclaim="postgres-pvc"}
+              / kubelet_volume_stats_capacity_bytes{namespace="tasks",persistentvolumeclaim="postgres-pvc"} > 0.80
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: "PostgreSQL disco > 80%"
+              description: "PVC postgres-pvc usa {{ $value | humanizePercentage }} de su capacidad"
+
       # ── Kubernetes General ──────────────────────────────────────────────────
       - name: kubernetes-alerts
         rules:

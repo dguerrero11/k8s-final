@@ -1,0 +1,242 @@
+# ══════════════════════════════════════════════════════════════════════════
+# Tekton Pipeline — Build & Push → tasks-api
+#
+# Flujo:
+#   1. git-clone   → clona el repo
+#   2. build-push  → construye imagen con Kaniko y la sube a Docker Hub
+#   3. update-image → actualiza el tag en app-tasks/k8s/02-app.yaml + git push
+#
+# Prerequisitos:
+#   kubectl apply -f https://api.hub.tekton.dev/v1/resource/tekton/task/git-clone/0.9/raw
+#   kubectl create secret docker-registry dockerhub-secret \
+#     --docker-username=TU_USER \
+#     --docker-password=TU_TOKEN \
+#     -n tekton-pipelines
+#   kubectl create secret generic git-credentials \
+#     --from-literal=username=TU_GITHUB_USER \
+#     --from-literal=password=TU_GITHUB_TOKEN \
+#     -n tekton-pipelines
+# ══════════════════════════════════════════════════════════════════════════
+---
+# ── Task: Kaniko build & push ─────────────────────────────────────────────
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: kaniko-build-push
+  namespace: tekton-pipelines
+spec:
+  params:
+    - name: IMAGE
+      description: Imagen destino (ej. docker.io/user/tasks-api)
+    - name: TAG
+      description: Tag de la imagen
+      default: "latest"
+    - name: CONTEXT
+      description: Directorio del Dockerfile dentro del repo
+      default: "app-tasks"
+    - name: DOCKERFILE
+      description: Ruta al Dockerfile
+      default: "app-tasks/Dockerfile"
+  workspaces:
+    - name: source
+      description: Directorio con el código fuente clonado
+    - name: dockerconfig
+      description: Secret con credenciales de Docker Hub
+  steps:
+    - name: build-and-push
+      image: gcr.io/kaniko-project/executor:v1.18.0
+      args:
+        - --dockerfile=$(params.DOCKERFILE)
+        - --context=dir://$(workspaces.source.path)/$(params.CONTEXT)
+        - --destination=$(params.IMAGE):$(params.TAG)
+        - --destination=$(params.IMAGE):latest
+        - --cache=true
+        - --cache-ttl=24h
+      env:
+        - name: DOCKER_CONFIG
+          value: /kaniko/.docker
+      volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker
+  volumes:
+    - name: docker-config
+      secret:
+        secretName: dockerhub-secret
+        items:
+          - key: .dockerconfigjson
+            path: config.json
+
+---
+# ── Task: Actualizar tag de imagen en el manifest ────────────────────────
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: update-image-tag
+  namespace: tekton-pipelines
+spec:
+  params:
+    - name: IMAGE
+      description: Nombre completo de la imagen
+    - name: TAG
+      description: Nuevo tag
+    - name: MANIFEST_FILE
+      default: "app-tasks/k8s/02-app.yaml"
+    - name: GIT_USER_EMAIL
+      default: "tekton@bootcamp.local"
+    - name: GIT_USER_NAME
+      default: "Tekton CI"
+    - name: GIT_REPO_URL
+      description: URL del repositorio git (HTTPS)
+  workspaces:
+    - name: source
+    - name: git-credentials
+  steps:
+    - name: update-and-push
+      image: alpine/git:2.40.1
+      script: |
+        #!/bin/sh
+        set -e
+
+        # Configurar git
+        git config --global user.email "$(params.GIT_USER_EMAIL)"
+        git config --global user.name  "$(params.GIT_USER_NAME)"
+
+        cd $(workspaces.source.path)
+
+        # Leer credenciales
+        GIT_USER=$(cat $(workspaces.git-credentials.path)/username)
+        GIT_TOKEN=$(cat $(workspaces.git-credentials.path)/password)
+
+        # Reemplazar tag en el manifest
+        sed -i "s|image: .*tasks-api:.*|image: $(params.IMAGE):$(params.TAG)|g" \
+          $(params.MANIFEST_FILE)
+
+        git add $(params.MANIFEST_FILE)
+        git commit -m "ci: update tasks-api image to $(params.TAG) [skip ci]" || echo "Nothing to commit"
+
+        # Push con credenciales
+        REPO_WITH_AUTH=$(echo $(params.GIT_REPO_URL) | sed "s|https://|https://${GIT_USER}:${GIT_TOKEN}@|")
+        git push "$REPO_WITH_AUTH" HEAD:main
+
+---
+# ── Pipeline principal ────────────────────────────────────────────────────
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: tasks-api-pipeline
+  namespace: tekton-pipelines
+spec:
+  params:
+    - name: REPO_URL
+      description: URL del repositorio
+      default: "https://github.com/dguerrero11/k8s-final"
+    - name: REVISION
+      description: Branch o commit
+      default: "main"
+    - name: IMAGE
+      description: Imagen Docker Hub
+      default: "docker.io/DOCKERHUB_USER/tasks-api"
+    - name: TAG
+      description: Tag de la imagen (usar el SHORT_SHA del commit)
+      default: "latest"
+
+  workspaces:
+    - name: source
+      description: Workspace compartido entre tasks
+    - name: dockerconfig
+    - name: git-credentials
+
+  tasks:
+    # ── 1. Clonar repositorio ────────────────────────────────────────────
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: Task
+      params:
+        - name: url
+          value: $(params.REPO_URL)
+        - name: revision
+          value: $(params.REVISION)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: source
+
+    # ── 2. Build & Push imagen ───────────────────────────────────────────
+    - name: build-push
+      taskRef:
+        name: kaniko-build-push
+        kind: Task
+      runAfter: [git-clone]
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+        - name: TAG
+          value: $(params.TAG)
+        - name: CONTEXT
+          value: app-tasks
+        - name: DOCKERFILE
+          value: app-tasks/Dockerfile
+      workspaces:
+        - name: source
+          workspace: source
+        - name: dockerconfig
+          workspace: dockerconfig
+
+    # ── 3. Actualizar manifest en Git ────────────────────────────────────
+    - name: update-manifest
+      taskRef:
+        name: update-image-tag
+        kind: Task
+      runAfter: [build-push]
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE)
+        - name: TAG
+          value: $(params.TAG)
+        - name: MANIFEST_FILE
+          value: app-tasks/k8s/02-app.yaml
+        - name: GIT_REPO_URL
+          value: $(params.REPO_URL)
+      workspaces:
+        - name: source
+          workspace: source
+        - name: git-credentials
+          workspace: git-credentials
+
+---
+# ── PipelineRun de ejemplo (ajustar TAG antes de aplicar) ────────────────
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: tasks-api-run-v1
+  namespace: tekton-pipelines
+spec:
+  pipelineRef:
+    name: tasks-api-pipeline
+  params:
+    - name: REPO_URL
+      value: "https://github.com/dguerrero11/k8s-final"
+    - name: REVISION
+      value: "main"
+    - name: IMAGE
+      # ── REEMPLAZA DOCKERHUB_USER ──────────────────────────────────────
+      value: "docker.io/DOCKERHUB_USER/tasks-api"
+    - name: TAG
+      value: "v1.0.0"
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          storageClassName: nfs-csi
+          resources:
+            requests:
+              storage: 500Mi
+    - name: dockerconfig
+      secret:
+        secretName: dockerhub-secret
+    - name: git-credentials
+      secret:
+        secretName: git-credentials

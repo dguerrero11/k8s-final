@@ -1,0 +1,113 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Demo — Generador de Tráfico HTTP con Trazas OTLP hacia Tempo
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Uso:
+#   kubectl apply -f monitoring/09-tempo-traffic-generator.yaml
+#   kubectl logs -n demo -l job-name=traffic-generator -f
+#
+# Resultado:
+#   20 requests HTTP → page-demo.demo.svc:80
+#   20 trazas OTLP  → tempo.monitoring.svc:4318
+#
+# Ver en Grafana:
+#   Explore → Tempo → TraceQL → {resource.service.name="page-demo-traffic"}
+#
+# Limpiar después del demo:
+#   kubectl delete -f monitoring/09-tempo-traffic-generator.yaml
+# ══════════════════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traffic-gen-script
+  namespace: demo
+  labels:
+    app: traffic-generator
+    component: observability-demo
+data:
+  gen.py: |
+    import time, requests
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    from opentelemetry.sdk.resources import Resource
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+    resource = Resource(attributes={"service.name": "page-demo-traffic"})
+    provider = TracerProvider(resource=resource)
+    exporter = OTLPSpanExporter(
+        endpoint="http://tempo.monitoring.svc:4318/v1/traces"
+    )
+    provider.add_span_processor(BatchSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+    tracer = trace.get_tracer("traffic-generator")
+
+    TARGET = "http://page-demo.demo.svc:80"
+    REQUESTS = 20
+    INTERVAL = 2  # segundos entre requests
+
+    print(f"Generando {REQUESTS} requests hacia {TARGET} ...")
+    for i in range(REQUESTS):
+        with tracer.start_as_current_span(f"http-request-{i}") as span:
+            try:
+                r = requests.get(TARGET, timeout=5)
+                span.set_attribute("http.status_code", r.status_code)
+                span.set_attribute("http.url", TARGET)
+                span.set_attribute("http.method", "GET")
+                span.set_attribute("request.index", i)
+                print(f"[{i+1}/{REQUESTS}] status={r.status_code}")
+            except Exception as e:
+                span.set_attribute("error", str(e))
+                span.set_attribute("http.url", TARGET)
+                print(f"[{i+1}/{REQUESTS}] ERROR: {e}")
+        if i < REQUESTS - 1:
+            time.sleep(INTERVAL)
+
+    provider.shutdown()
+    print("Done — trazas enviadas a Tempo ✅")
+    print(f"Ver en Grafana → Explore → Tempo → TraceQL:")
+    print('  {resource.service.name="page-demo-traffic"}')
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: traffic-generator
+  namespace: demo
+  labels:
+    app: traffic-generator
+    component: observability-demo
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      labels:
+        app: traffic-generator
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: generator
+          image: python:3.11-slim
+          command: ["sh", "-c"]
+          args:
+            - >
+              pip install -q
+              opentelemetry-api
+              opentelemetry-sdk
+              opentelemetry-exporter-otlp-proto-http
+              requests
+              && python3 /scripts/gen.py
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+      volumes:
+        - name: script
+          configMap:
+            name: traffic-gen-script
