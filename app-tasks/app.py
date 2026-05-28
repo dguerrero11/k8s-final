@@ -159,13 +159,19 @@ HTML = """
 
 @app.route("/")
 def index():
-    """Lista todas las tareas — genera span HTTP + span DB automáticamente"""
+    """Lista todas las tareas — span HTTP > span custom > span DB"""
     with tracer.start_as_current_span("list-all-tasks") as span:
         conn = get_db()
         try:
-            with conn.cursor() as cur:
-                cur.execute("SELECT * FROM tasks ORDER BY created_at DESC")
-                tasks = cur.fetchall()
+            with tracer.start_as_current_span("db.select-tasks") as db_span:
+                db_span.set_attribute("db.system",    "postgresql")
+                db_span.set_attribute("db.name",      "tasksdb")
+                db_span.set_attribute("db.operation", "SELECT")
+                db_span.set_attribute("db.statement", "SELECT * FROM tasks ORDER BY created_at DESC")
+                with conn.cursor() as cur:
+                    cur.execute("SELECT * FROM tasks ORDER BY created_at DESC")
+                    tasks = cur.fetchall()
+                db_span.set_attribute("db.rows_returned", len(tasks))
             span.set_attribute("tasks.count", len(tasks))
             logger.info(f"Listed {len(tasks)} tasks")
         finally:
@@ -175,7 +181,7 @@ def index():
 
 @app.route("/tasks", methods=["POST"])
 def create_task():
-    """Crear tarea — span con atributo task.title"""
+    """Crear tarea — span HTTP > span custom > span DB"""
     title = request.form.get("title", "").strip()
     if not title:
         return redirect(url_for("index"))
@@ -183,13 +189,19 @@ def create_task():
         span.set_attribute("task.title", title)
         conn = get_db()
         try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO tasks (title) VALUES (%s) RETURNING id",
-                    (title,)
-                )
-                task_id = cur.fetchone()["id"]
-                conn.commit()
+            with tracer.start_as_current_span("db.insert-task") as db_span:
+                db_span.set_attribute("db.system",    "postgresql")
+                db_span.set_attribute("db.name",      "tasksdb")
+                db_span.set_attribute("db.operation", "INSERT")
+                db_span.set_attribute("db.statement", "INSERT INTO tasks (title) VALUES (?)")
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO tasks (title) VALUES (%s) RETURNING id",
+                        (title,)
+                    )
+                    task_id = cur.fetchone()["id"]
+                    conn.commit()
+                db_span.set_attribute("db.rows_affected", 1)
             span.set_attribute("task.id", task_id)
             tasks_created.inc()
             logger.info(f"Created task id={task_id} title={title!r}")
@@ -234,15 +246,21 @@ def delete_task(task_id):
 
 @app.route("/api/tasks")
 def api_tasks():
-    """API JSON — ideal para curl y ver trazas en Tempo"""
+    """API JSON — span HTTP > span custom > span DB"""
     with tracer.start_as_current_span("api-list-tasks") as span:
         conn = get_db()
         try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT id, title, done, created_at::text FROM tasks ORDER BY created_at DESC"
-                )
-                tasks = [dict(t) for t in cur.fetchall()]
+            with tracer.start_as_current_span("db.select-tasks-api") as db_span:
+                db_span.set_attribute("db.system",    "postgresql")
+                db_span.set_attribute("db.name",      "tasksdb")
+                db_span.set_attribute("db.operation", "SELECT")
+                db_span.set_attribute("db.statement", "SELECT id, title, done, created_at FROM tasks")
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT id, title, done, created_at::text FROM tasks ORDER BY created_at DESC"
+                    )
+                    tasks = [dict(t) for t in cur.fetchall()]
+                db_span.set_attribute("db.rows_returned", len(tasks))
             span.set_attribute("tasks.count", len(tasks))
             return jsonify({"tasks": tasks, "total": len(tasks), "service": SERVICE_NAME})
         finally:
