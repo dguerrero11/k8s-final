@@ -26,6 +26,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import Counter
 
 # ── Logging estructurado (capturado por Promtail → Loki) ──────────────────
 logging.basicConfig(
@@ -58,9 +59,10 @@ tracer = trace.get_tracer(__name__)
 metrics = PrometheusMetrics(app)
 metrics.info("tasks_app_info", "Task Manager info", version=os.getenv("APP_VERSION", "1.0.0"))
 
-tasks_created   = metrics.counter("tasks_created_total",   "Total de tareas creadas")
-tasks_completed = metrics.counter("tasks_completed_total", "Total de tareas completadas")
-tasks_deleted   = metrics.counter("tasks_deleted_total",   "Total de tareas eliminadas")
+# Contadores de negocio — incrementados manualmente en cada ruta
+tasks_created   = Counter("tasks_created_total",   "Total de tareas creadas")
+tasks_completed = Counter("tasks_completed_total", "Total de tareas completadas")
+tasks_deleted   = Counter("tasks_deleted_total",   "Total de tareas eliminadas")
 
 # ── Conexión a PostgreSQL ─────────────────────────────────────────────────
 def get_db():
