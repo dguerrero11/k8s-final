@@ -801,67 +801,433 @@ EOF
   <div class="alert-box" style="margin-top:12px">💡 Cada request genera 1 trace con atributos: <code>http.status_code=200</code>, <code>http.url</code>, <code>request.number</code></div>
 </div>
 
-<!-- ══════════════════════ 17. DEMO 4: ALERTAMIENTO -->
+<!-- ══════════════════════ 17. ALERTAS: CONCEPTO -->
 <div class="slide">
-  <div class="slide-title">Demo 4 — Alertamiento con AlertManager</div>
-  <div class="slide-sub">Disparar alertas reales y verlas en AlertManager UI + notificaciones</div>
+  <div class="section-badge orange">Demo 4 — Alertamiento</div>
+  <div class="slide-title">¿Cómo funciona el sistema de alertas?</div>
+  <div class="slide-sub">Prometheus detecta · AlertManager gestiona · Receiver notifica</div>
+
+  <!-- Flujo visual principal -->
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap">
+      <div style="text-align:center;padding:14px 18px;background:#0f1117;border:2px solid #4a5568;border-radius:10px;min-width:120px">
+        <div style="font-size:24px">🖥️</div>
+        <div style="font-size:12px;font-weight:700;color:#e2e8f0;margin-top:4px">App / K8s</div>
+        <div style="font-size:11px;color:#718096">emite métricas</div>
+      </div>
+      <div style="font-size:22px;color:#4a5568;padding:0 6px">→</div>
+      <div style="text-align:center;padding:14px 18px;background:#0f1117;border:2px solid #f6ad55;border-radius:10px;min-width:130px">
+        <div style="font-size:24px">📊</div>
+        <div style="font-size:12px;font-weight:700;color:#f6ad55;margin-top:4px">Prometheus</div>
+        <div style="font-size:11px;color:#718096">evalúa reglas cada 15s</div>
+      </div>
+      <div style="font-size:22px;color:#4a5568;padding:0 6px">→</div>
+      <div style="text-align:center;padding:14px 18px;background:#1a0d2e;border:2px solid #b794f4;border-radius:10px;min-width:130px">
+        <div style="font-size:24px">🔔</div>
+        <div style="font-size:12px;font-weight:700;color:#b794f4;margin-top:4px">AlertManager</div>
+        <div style="font-size:11px;color:#718096">agrupa · silencia · enruta</div>
+      </div>
+      <div style="font-size:22px;color:#4a5568;padding:0 6px">→</div>
+      <div style="text-align:center;padding:14px 18px;background:#0f1117;border:2px solid #68d391;border-radius:10px;min-width:120px">
+        <div style="font-size:24px">💬</div>
+        <div style="font-size:12px;font-weight:700;color:#68d391;margin-top:4px">Receiver</div>
+        <div style="font-size:11px;color:#718096">Slack / Email / Webhook</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estados de una alerta -->
+  <div class="cards cards-3" style="margin-bottom:16px">
+    <div class="card" style="border-color:#4a9eff;text-align:center">
+      <div style="font-size:28px">⚪</div>
+      <div class="card-title blue" style="text-align:center">INACTIVE</div>
+      <div class="card-body">La condición <strong>no se cumple</strong>. Todo normal. La regla existe pero no hay problema.</div>
+    </div>
+    <div class="card" style="border-color:#f6ad55;text-align:center">
+      <div style="font-size:28px">🟡</div>
+      <div class="card-title orange" style="text-align:center">PENDING</div>
+      <div class="card-body">La condición <strong>se cumple</strong>, pero aún no pasó el tiempo del campo <code style="color:#76e4f7">for:</code>. Esperando confirmación.</div>
+    </div>
+    <div class="card" style="border-color:#fc8181;text-align:center">
+      <div style="font-size:28px">🔴</div>
+      <div class="card-title red" style="text-align:center">FIRING</div>
+      <div class="card-body">Confirmada. Pasó el tiempo <code style="color:#76e4f7">for:</code>. AlertManager recibe la alerta y envía notificación.</div>
+    </div>
+  </div>
+
+  <div class="warn-box">
+    💡 <strong>Clave:</strong> El campo <code style="color:#76e4f7">for: 1m</code> en la regla evita alertas por picos breves. La alerta pasa de PENDING → FIRING solo si el problema dura ese tiempo.
+  </div>
+</div>
+
+<!-- ══════════════════════ 17b. LAS REGLAS QUE TENEMOS -->
+<div class="slide">
+  <div class="section-badge orange">Demo 4 — Alertamiento</div>
+  <div class="slide-title">Las 4 reglas de alerta — Task Manager</div>
+  <div class="slide-sub">Definidas en <code style="color:#76e4f7">monitoring/03-prometheus.yaml</code> → grupo <code style="color:#76e4f7">tasks-app-alerts</code></div>
+
+  <div class="cards cards-2">
+    <div class="card" style="border-left:4px solid #fc8181">
+      <div class="card-title red">🔴 TasksApiDown — critical</div>
+      <div class="card-body" style="margin-bottom:10px">Se dispara cuando la app <strong>tasks-api</strong> tiene 0 réplicas disponibles durante 1 minuto.</div>
+      <div class="code" style="font-size:11px">expr: kube_deployment_status_replicas_available
+       {namespace="tasks",deployment="tasks-api"} == 0
+for: 1m</div>
+    </div>
+    <div class="card" style="border-left:4px solid #fc8181">
+      <div class="card-title red">🔴 TasksPostgresDown — critical</div>
+      <div class="card-body" style="margin-bottom:10px">Se dispara cuando <strong>PostgreSQL</strong> no tiene réplicas listas durante 1 minuto.</div>
+      <div class="code" style="font-size:11px">expr: kube_statefulset_status_replicas_ready
+       {namespace="tasks",statefulset="postgres"} == 0
+for: 1m</div>
+    </div>
+    <div class="card" style="border-left:4px solid #f6ad55">
+      <div class="card-title orange">🟡 TasksApiHighErrorRate — warning</div>
+      <div class="card-body" style="margin-bottom:10px">Se dispara cuando más del <strong>5% de requests</strong> responden con error 5xx durante 2 minutos.</div>
+      <div class="code" style="font-size:11px">expr: rate(flask_http_request_total
+       {status=~"5.."}[5m])
+     / rate(flask_http_request_total[5m]) > 0.05
+for: 2m</div>
+    </div>
+    <div class="card" style="border-left:4px solid #f6ad55">
+      <div class="card-title orange">🟡 TasksPostgresDiskHigh — warning</div>
+      <div class="card-body" style="margin-bottom:10px">Se dispara cuando el PVC de Postgres supera el <strong>80% de capacidad</strong> durante 5 minutos.</div>
+      <div class="code" style="font-size:11px">expr: kubelet_volume_stats_used_bytes
+       {pvc="postgres-pvc"}
+     / kubelet_volume_stats_capacity_bytes
+       {pvc="postgres-pvc"} > 0.80
+for: 5m</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 17c. DEMO — PASO 0: ESTADO SANO -->
+<div class="slide">
+  <div class="section-badge orange">Demo 4 — Paso 0 de 4</div>
+  <div class="slide-title">Antes de romper nada — Estado sano ✅</div>
+  <div class="slide-sub">Primero verificamos que todo esté corriendo. Esto es el <em>baseline</em>.</div>
+
   <div class="two-col">
     <div>
       <div class="card">
-        <div class="card-title">🧪 Ejercicio: Disparar una alerta</div>
-        <div class="code"><span class="comment"># Paso 1: Suspender ArgoCD selfHeal</span>
-kubectl patch application page-demo \
-  -n argocd --type merge \
-  -p '{"spec":{"syncPolicy":
-  {"automated":{"selfHeal":false}}}}'
+        <div class="card-title">▶ Verificar pods del Task Manager</div>
+        <div class="code"><span class="cmd">kubectl get pods -n tasks</span>
 
-<span class="comment"># Paso 2: Escalar a 0 réplicas</span>
-kubectl scale deployment page-demo \
-  -n demo --replicas=0
+<span class="comment"># Resultado esperado:</span>
+NAME                        READY  STATUS
+postgres-0                  1/1    Running  ✅
+tasks-api-xxx-aaa           1/1    Running  ✅
+tasks-api-xxx-bbb           1/1    Running  ✅</div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">▶ Ver métricas en Prometheus</div>
+        <div class="code"><span class="comment"># Abrir en el navegador:</span>
+http://192.168.109.142:30900
 
-<span class="comment"># Paso 3: Ver alerta en Prometheus (~15s)</span>
-<span class="comment"># http://192.168.109.142:30900/alerts</span>
-<span class="comment"># DeploymentUnavailable → FIRING 🔴</span>
+<span class="comment"># Ir a: Status → Alerts</span>
+<span class="comment"># Todas las reglas: INACTIVE ⚪</span>
+<span class="comment"># (ninguna alerta disparada aún)</span>
 
-<span class="comment"># Paso 4: Ver en AlertManager</span>
-<span class="comment"># http://192.168.109.142:30903</span>
-
-<span class="comment"># Paso 5: Restaurar</span>
-kubectl scale deployment page-demo \
-  -n demo --replicas=3
-kubectl patch application page-demo \
-  -n argocd --type merge \
-  -p '{"spec":{"syncPolicy":
-  {"automated":{"selfHeal":true}}}}'</div>
+<span class="comment"># O ejecutar en terminal:</span>
+<span class="cmd">curl -s http://192.168.109.142:30900/\</span>
+<span class="cmd">  api/v1/query?query=\</span>
+<span class="cmd">  kube_deployment_status_replicas_available\</span>
+<span class="cmd">  {namespace="tasks"}</span>
+<span class="comment"># Debe retornar: "value": "2"  ✅</span></div>
       </div>
     </div>
     <div>
-      <div class="card">
-        <div class="card-title">🔔 Configurar notificaciones webhook</div>
-        <div class="code"><span class="comment"># Actualizar receiver en AlertManager</span>
-kubectl patch configmap \
-  alertmanager-config \
-  -n monitoring --type merge -p '{
-  "data": {
-    "alertmanager.yml": "...\n
-receivers:\n
-  - name: demo-receiver\n
-    webhook_configs:\n
-      - url: https://webhook.site/TU-ID\n
-        send_resolved: true\n"
-  }
-}'
+      <div class="card" style="border-color:#f6ad55">
+        <div class="card-title orange">⚠️ Por qué suspender ArgoCD primero</div>
+        <div class="card-body" style="line-height:2">
+          ArgoCD tiene <strong style="color:#76e4f7">selfHeal: true</strong> configurado.<br><br>
+          Si escalamos a 0 sin suspenderlo, ArgoCD detecta el <em>drift</em> respecto al Git y restaura las réplicas automáticamente en <strong>~30 segundos</strong>.<br><br>
+          Resultado: la alerta nunca llega a FIRING porque las réplicas se restauran antes de que pase el <code style="color:#76e4f7">for: 1m</code>.<br><br>
+          <strong style="color:#68d391">Solución:</strong> suspender el sync antes del experimento.
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">▶ Suspender ArgoCD selfHeal</div>
+        <div class="code"><span class="cmd">kubectl patch application tasks-api \</span>
+<span class="cmd">  -n argocd --type=merge \</span>
+<span class="cmd">  -p '{"spec":{"syncPolicy":{"automated":null}}}'</span>
 
-<span class="comment"># Reiniciar para aplicar</span>
-kubectl rollout restart \
-  deployment/alertmanager -n monitoring
-
-<span class="comment"># Para Slack (producción):</span>
-<span class="comment"># slack_configs:</span>
-<span class="comment">#   - api_url: https://hooks.slack.com/...</span>
-<span class="comment">#     channel: '#alertas-k8s'</span></div>
+<span class="comment"># Verificar que se suspendió:</span>
+<span class="cmd">kubectl get application tasks-api \</span>
+<span class="cmd">  -n argocd -o jsonpath=\</span>
+<span class="cmd">  '{.spec.syncPolicy.automated}'</span>
+<span class="comment"># Debe mostrar: nada (vacío) ✅</span></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 17d. DEMO — PASO 1: ROMPER APP -->
+<div class="slide">
+  <div class="section-badge orange">Demo 4 — Paso 1 de 4</div>
+  <div class="slide-title">Romper la app → TasksApiDown 🔴</div>
+  <div class="slide-sub">Escalamos tasks-api a 0 y observamos la alerta evolucionar: INACTIVE → PENDING → FIRING</div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">▶ Escalar tasks-api a 0 réplicas</div>
+        <div class="code"><span class="cmd">kubectl scale deployment tasks-api \</span>
+<span class="cmd">  -n tasks --replicas=0</span>
+
+<span class="comment"># Verificar que no hay pods:</span>
+<span class="cmd">kubectl get pods -n tasks</span>
+<span class="comment"># postgres-0     1/1  Running ✅</span>
+<span class="comment"># (tasks-api ya no aparece) ✅</span></div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-title">▶ Monitorear en tiempo real (cada 10s)</div>
+        <div class="code"><span class="cmd">watch -n 10 'curl -s http://192.168.109.142:\</span>
+<span class="cmd">30900/api/v1/alerts | python3 -c "
+import json,sys
+alerts=json.load(sys.stdin)[\"data\"][\"alerts\"]
+for a in alerts:
+  n=a[\"labels\"][\"alertname\"]
+  s=a[\"state\"]
+  if \"tasks\" in n.lower():
+    print(f\"[{s.upper()}] {n}\")
+"'</span></div>
+      </div>
+    </div>
+    <div>
+      <!-- Timeline visual -->
+      <div class="card" style="border-color:#f6ad55">
+        <div class="card-title orange">⏱️ Timeline de la alerta</div>
+        <div class="steps" style="margin-top:8px">
+          <div class="step">
+            <div class="step-num" style="background:#1a1f2e;border:2px solid #4a9eff;color:#4a9eff;font-size:11px">0s</div>
+            <div class="step-content">
+              <div class="step-title blue">kubectl scale → replicas=0</div>
+              <div class="step-desc">Los pods se terminan. kube-state-metrics detecta el cambio.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#1a1f2e;border:2px solid #f6ad55;color:#f6ad55;font-size:11px">~15s</div>
+            <div class="step-content">
+              <div class="step-title orange">🟡 PENDING</div>
+              <div class="step-desc">Prometheus evalúa la regla y la condición es verdadera. Inicia el contador del <code style="color:#76e4f7">for: 1m</code>.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#1a1f2e;border:2px solid #fc8181;color:#fc8181;font-size:11px">~75s</div>
+            <div class="step-content">
+              <div class="step-title red">🔴 FIRING</div>
+              <div class="step-desc">Pasó 1 minuto confirmado. Prometheus envía la alerta a AlertManager.</div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num" style="background:#1a1f2e;border:2px solid #68d391;color:#68d391;font-size:11px">~80s</div>
+            <div class="step-content">
+              <div class="step-title green">💬 AlertManager recibe</div>
+              <div class="step-desc">Agrupa la alerta y la envía al receiver configurado (Slack/Webhook).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="alert-box" style="margin-top:12px">
+        🔍 <strong>Ver en Prometheus:</strong> <a href="http://192.168.109.142:30900/alerts" style="color:#76e4f7">http://192.168.109.142:30900/alerts</a><br>
+        Busca <strong style="color:#fc8181">TasksApiDown</strong> → primero 🟡 PENDING, luego 🔴 FIRING
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 17e. DEMO — PASO 2: ROMPER POSTGRES + VER ALERTMANAGER -->
+<div class="slide">
+  <div class="section-badge orange">Demo 4 — Paso 2 de 4</div>
+  <div class="slide-title">Romper Postgres → segunda alerta 🔴🔴</div>
+  <div class="slide-sub">Con tasks-api ya en FIRING, escalamos postgres a 0 y esperamos la segunda alerta</div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">▶ Escalar postgres a 0</div>
+        <div class="code"><span class="comment"># tasks-api ya está en FIRING ✅</span>
+<span class="comment"># Ahora bajamos PostgreSQL:</span>
+<span class="cmd">kubectl scale statefulset postgres \</span>
+<span class="cmd">  -n tasks --replicas=0</span>
+
+<span class="comment"># Esperar ~90 segundos...</span>
+<span class="cmd">sleep 90</span>
+
+<span class="comment"># Verificar AMBAS alertas:</span>
+<span class="cmd">curl -s http://192.168.109.142:30900/\</span>
+<span class="cmd">  api/v1/alerts | python3 -c "
+import json,sys
+a=json.load(sys.stdin)['data']['alerts']
+tasks=[x for x in a if 'tasks' in
+  x['labels']['alertname'].lower()]
+print(f'Alertas tasks: {len(tasks)}')
+for x in tasks:
+  n=x['labels']['alertname']
+  s=x['state']
+  sev=x['labels'].get('severity','')
+  print(f'  [{s.upper()}] {n} ({sev})')
+"</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="border-color:#b794f4">
+        <div class="card-title purple">🔔 Verificar AlertManager UI</div>
+        <div class="card-body" style="margin-bottom:10px">Abrir en el navegador:</div>
+        <div class="code" style="margin-top:0">http://192.168.109.142:30903
+
+<span class="comment"># Deberías ver:</span>
+<span class="str">TasksApiDown      severity=critical 🔴</span>
+<span class="str">TasksPostgresDown severity=critical 🔴</span></div>
+        <div class="card-body" style="margin-top:10px">O desde terminal:</div>
+        <div class="code">curl -s http://192.168.109.142:30903/\
+  api/v2/alerts | python3 -c "
+import json,sys
+am=json.load(sys.stdin)
+print(f'AlertManager: {len(am)} alertas')
+for a in am:
+  n=a['labels'].get('alertname','?')
+  s=a['status']['state']
+  print(f'  [{s}] {n}')
+"</div>
+      </div>
+      <div class="card" style="margin-top:14px;background:#0d2010;border-color:#276749">
+        <div class="card-title green">✅ Resultado esperado</div>
+        <div class="code" style="color:#68d391">Alertas tasks: 2
+  [FIRING] TasksApiDown (critical)
+  [FIRING] TasksPostgresDown (critical)
+
+AlertManager: 2 alertas
+  [active] TasksApiDown
+  [active] TasksPostgresDown</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 17f. DEMO — PASO 3: RESTAURAR -->
+<div class="slide">
+  <div class="section-badge orange">Demo 4 — Paso 3 de 4</div>
+  <div class="slide-title">Restaurar el sistema → alertas se resuelven ✅</div>
+  <div class="slide-sub">Subimos las réplicas de vuelta y reactivamos ArgoCD. Las alertas pasan a RESOLVED.</div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">▶ Restaurar réplicas</div>
+        <div class="code"><span class="comment"># 1. Levantar PostgreSQL de vuelta</span>
+<span class="cmd">kubectl scale statefulset postgres \</span>
+<span class="cmd">  -n tasks --replicas=1</span>
+
+<span class="comment"># 2. Levantar tasks-api de vuelta</span>
+<span class="cmd">kubectl scale deployment tasks-api \</span>
+<span class="cmd">  -n tasks --replicas=2</span>
+
+<span class="comment"># 3. Reactivar ArgoCD selfHeal</span>
+<span class="cmd">kubectl patch application tasks-api \</span>
+<span class="cmd">  -n argocd --type=merge \</span>
+<span class="cmd">  -p '{"spec":{"syncPolicy":{</span>
+<span class="cmd">    "automated":{</span>
+<span class="cmd">      "prune":true,</span>
+<span class="cmd">      "selfHeal":true</span>
+<span class="cmd">    }}}}'</span>
+
+<span class="comment"># 4. Verificar pods</span>
+<span class="cmd">kubectl get pods -n tasks</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="border-color:#68d391">
+        <div class="card-title green">▶ Confirmar que las alertas se resolvieron</div>
+        <div class="code"><span class="comment"># Esperar ~30s y verificar:</span>
+<span class="cmd">curl -s http://192.168.109.142:30900/\</span>
+<span class="cmd">  api/v1/alerts | python3 -c "
+import json,sys
+a=json.load(sys.stdin)['data']['alerts']
+tasks=[x for x in a if 'tasks' in
+  x['labels']['alertname'].lower()]
+if tasks:
+  for x in tasks:
+    print(x['labels']['alertname'],
+          x['state'])
+else:
+  print('✅ Sin alertas tasks activas')
+"</span>
+
+<span class="comment"># Resultado esperado:</span>
+<span class="str">✅ Sin alertas tasks activas</span>
+
+<span class="comment"># AlertManager también vacío:</span>
+<span class="cmd">curl -s http://192.168.109.142:30903/\</span>
+<span class="cmd">  api/v2/alerts | python3 -c \</span>
+<span class="cmd">  "import json,sys; a=json.load(sys.stdin);\</span>
+<span class="cmd">   print(f'Alertas: {len(a)}')"</span>
+<span class="comment"># Alertas: 0  ✅</span></div>
+      </div>
+
+      <!-- Ciclo completo visual -->
+      <div class="card" style="margin-top:14px;background:#0a1a14;border-color:#276749">
+        <div class="card-title green">🔄 Ciclo completo observado</div>
+        <div style="font-size:12px;color:#a0aec0;line-height:2;margin-top:4px">
+          <span style="color:#4a9eff">⚪ INACTIVE</span> → (scale=0) →
+          <span style="color:#f6ad55">🟡 PENDING</span> → (for:1m) →
+          <span style="color:#fc8181">🔴 FIRING</span> → (AlertManager) →
+          <span style="color:#f687b3">💬 NOTIFIED</span> → (scale=2) →
+          <span style="color:#68d391">✅ RESOLVED</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ 17g. DEMO — RECAP VISUAL -->
+<div class="slide">
+  <div class="section-badge orange">Demo 4 — Recap</div>
+  <div class="slide-title">Resumen del ejercicio de alertas</div>
+  <div class="slide-sub">Qué aprendimos y por qué importa cada componente</div>
+
+  <div class="cards cards-2" style="margin-bottom:16px">
+    <div class="card" style="border-left:4px solid #f6ad55">
+      <div class="card-title orange">🤔 ¿Por qué ArgoCD interfería?</div>
+      <div class="card-body">
+        ArgoCD con <code style="color:#76e4f7">selfHeal: true</code> compara el estado del cluster con el Git. Cuando escalamos a 0, ArgoCD lo detecta como <em>drift</em> y restaura automáticamente antes de que pase el <code style="color:#76e4f7">for: 1m</code>.<br><br>
+        <strong style="color:#68d391">Lección:</strong> En producción real, las alertas funcionan porque los fallos no son intencionales — ArgoCD no los revierte.
+      </div>
+    </div>
+    <div class="card" style="border-left:4px solid #76e4f7">
+      <div class="card-title blue">📐 ¿Qué mide cada regla?</div>
+      <div class="card-body">
+        <strong style="color:#f687b3">kube_deployment_status_replicas_available</strong> → viene de <strong>kube-state-metrics</strong>, que observa los objetos Kubernetes.<br><br>
+        <strong style="color:#f687b3">kube_statefulset_status_replicas_ready</strong> → mismo origen, para StatefulSets.<br><br>
+        Sin kube-state-metrics, estas métricas no existirían.
+      </div>
+    </div>
+  </div>
+
+  <div class="cards cards-3">
+    <div class="card" style="text-align:center;border-color:#f6ad55">
+      <div style="font-size:32px;margin-bottom:8px">📊</div>
+      <div class="card-title orange">Prometheus</div>
+      <div class="card-body">Scrape → Evalúa reglas → Detecta condición → Espera <code>for:</code> → Envía a AlertManager</div>
+    </div>
+    <div class="card" style="text-align:center;border-color:#b794f4">
+      <div style="font-size:32px;margin-bottom:8px">🔔</div>
+      <div class="card-title purple">AlertManager</div>
+      <div class="card-body">Recibe alertas → Agrupa por labels → Silencia duplicados → Enruta al receiver correcto</div>
+    </div>
+    <div class="card" style="text-align:center;border-color:#68d391">
+      <div style="font-size:32px;margin-bottom:8px">🔗</div>
+      <div class="card-title green">Receivers</div>
+      <div class="card-body">Slack / Email / PagerDuty / Webhook — configurados en <code style="color:#76e4f7">alertmanager.yml</code></div>
+    </div>
+  </div>
+
+  <div class="alert-box" style="margin-top:14px">
+    🌐 <strong>URLs del ejercicio:</strong> &nbsp;
+    Prometheus Alerts: <strong style="color:#f6ad55">:30900/alerts</strong> &nbsp;|&nbsp;
+    AlertManager UI: <strong style="color:#b794f4">:30903</strong> &nbsp;|&nbsp;
+    Grafana Alerting: <strong style="color:#f687b3">:30300 → Alerting → Alert rules</strong>
   </div>
 </div>
 
