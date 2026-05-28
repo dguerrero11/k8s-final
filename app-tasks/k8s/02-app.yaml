@@ -1,6 +1,6 @@
 # ══════════════════════════════════════════════════════════════════════════
 # Task Manager App — Deployment + Service
-# Imagen: docker.io/<TU_DOCKERHUB_USER>/tasks-api:latest
+# Imagen: docker.io/<TU_guerrero11dan>/tasks-api:latest
 # ══════════════════════════════════════════════════════════════════════════
 ---
 apiVersion: apps/v1
@@ -34,7 +34,7 @@ spec:
       containers:
         - name: tasks-api
           # ── REEMPLAZA con tu imagen de Docker Hub ──────────────────────
-          image: docker.io/DOCKERHUB_USER/tasks-api:latest
+          image: docker.io/guerrero11dan/tasks-api:latest
           # ──────────────────────────────────────────────────────────────
           imagePullPolicy: Always
           ports:
