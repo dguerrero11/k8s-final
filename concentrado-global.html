@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concentrado Global — Bootcamp DevOps K8s 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1117; --bg2: #1a1f2e; --bg3: #0d1117;
+  --border: #2d3748; --border2: #3d4a5c;
+  --text: #e2e8f0; --muted: #718096; --muted2: #a0aec0;
+  --orange: #f6ad55; --green: #68d391; --blue: #76e4f7;
+  --pink: #f687b3; --purple: #b794f4; --red: #fc8181; --yellow: #faf089;
+}
+html { scroll-behavior: smooth; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 260px; min-width: 260px; background: var(--bg2);
+  border-right: 1px solid var(--border); position: sticky;
+  top: 0; height: 100vh; overflow-y: auto; padding: 24px 0; flex-shrink: 0;
+}
+.sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.sidebar-logo .title { font-size: 15px; font-weight: 800; color: var(--orange); line-height: 1.3; }
+.sidebar-logo .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.nav-section { padding: 6px 20px 2px; font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+.nav-item { display: block; padding: 7px 20px; font-size: 13px; color: var(--muted2); text-decoration: none; border-left: 3px solid transparent; transition: all 0.2s; }
+.nav-item:hover { color: var(--text); background: rgba(255,255,255,0.04); border-left-color: var(--orange); }
+.nav-item.active { color: var(--orange); border-left-color: var(--orange); background: rgba(246,173,85,0.08); }
+.nav-item .num { display: inline-block; width: 20px; height: 20px; border-radius: 50%; font-size: 10px; font-weight: 800; text-align: center; line-height: 20px; margin-right: 8px; }
+
+/* ── MAIN ── */
+.main { flex: 1; padding: 48px 56px; max-width: 1100px; }
+
+/* ── HERO ── */
+.hero { text-align: center; padding: 48px 0 56px; border-bottom: 1px solid var(--border); margin-bottom: 56px; }
+.hero-title { font-size: 44px; font-weight: 800; background: linear-gradient(90deg, var(--orange), var(--pink), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px; }
+.hero-sub { font-size: 17px; color: var(--muted); margin-bottom: 28px; }
+.pill-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.pill { background: var(--bg2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: 12px; color: var(--muted2); }
+
+/* ── MODULE ── */
+.module { margin-bottom: 72px; scroll-margin-top: 24px; }
+.module-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; padding-bottom: 16px; border-bottom: 2px solid var(--border); }
+.module-num { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; flex-shrink: 0; }
+.module-title { font-size: 28px; font-weight: 700; }
+.module-sub { font-size: 14px; color: var(--muted); margin-top: 3px; }
+
+/* ── SECTIONS ── */
+.section { margin-bottom: 28px; }
+.section-title { font-size: 16px; font-weight: 700; color: var(--orange); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.section-title::before { content: ''; display: block; width: 4px; height: 18px; background: var(--orange); border-radius: 2px; }
+
+/* ── CARDS ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.card-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.card-body { font-size: 13px; color: var(--muted2); line-height: 1.7; }
+
+/* ── CODE ── */
+.code { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; font-family: 'Cascadia Code','Fira Code',monospace; font-size: 12px; color: var(--blue); line-height: 1.8; white-space: pre; overflow-x: auto; margin: 10px 0; }
+.code .c { color: #4a5568; }
+.code .g { color: var(--green); }
+.code .o { color: var(--orange); }
+.code .p { color: var(--pink); }
+.code .y { color: var(--yellow); }
+
+/* ── CONCEPT LIST ── */
+.concept-list { display: flex; flex-direction: column; gap: 10px; }
+.concept { display: flex; gap: 12px; align-items: flex-start; }
+.concept-icon { font-size: 18px; flex-shrink: 0; width: 28px; text-align: center; margin-top: 1px; }
+.concept-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.concept-desc { font-size: 13px; color: var(--muted2); line-height: 1.5; }
+
+/* ── EXERCISE ── */
+.exercise { background: #0a1a14; border: 1px solid #276749; border-radius: 12px; padding: 20px 24px; margin-top: 20px; }
+.exercise-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.exercise-badge { background: #276749; color: var(--green); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.exercise-title { font-size: 16px; font-weight: 700; color: var(--green); }
+.exercise-level { font-size: 11px; padding: 3px 10px; border-radius: 999px; font-weight: 700; }
+.lvl-basico { background: #0d2818; color: var(--green); }
+.lvl-medio { background: #2d1500; color: var(--orange); }
+.lvl-avanzado { background: #1a0a0a; color: var(--red); }
+.steps { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.step { display: flex; gap: 12px; align-items: flex-start; }
+.step-num { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; background: #1a2a1a; border: 1.5px solid var(--green); color: var(--green); }
+.step-text { font-size: 13px; color: var(--muted2); line-height: 1.6; padding-top: 3px; }
+.step-text strong { color: var(--text); }
+
+/* ── FLOW ── */
+.flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+.flow-box { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 12px; font-weight: 700; }
+.flow-arrow { color: var(--muted); font-size: 18px; }
+
+/* ── TABLE ── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+th { background: var(--bg2); color: var(--orange); padding: 10px 14px; text-align: left; font-weight: 700; border-bottom: 2px solid var(--border); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--bg2); color: var(--text); }
+tr:hover td { background: var(--bg2); }
+
+/* ── ALERT ── */
+.info-box { background: #0a1a2e; border: 1px solid #2b4a7a; border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--blue); margin: 12px 0; line-height: 1.6; }
+.warn-box { background: #2d1f0a; border: 1px solid #744210; border-radius: 10px; padding: 14px 18px; font-size: 13px; color: var(--orange); margin: 12px 0; line-height: 1.6; }
+
+/* ── TAG ── */
+.tag { display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+
+/* ── DIVIDER ── */
+.divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+/* ── SCROLL ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="title">📚 Concentrado Global</div>
+    <div class="sub">Bootcamp DevOps · Kubernetes 2026</div>
+  </div>
+
+  <div class="nav-section">Fundamentos</div>
+  <a class="nav-item" href="#m1"><span class="num" style="background:#0d2818;color:#68d391">1</span>Fundamentos K8s</a>
+  <a class="nav-item" href="#m2"><span class="num" style="background:#0d2818;color:#68d391">2</span>Instalación Ansible</a>
+  <a class="nav-item" href="#m3"><span class="num" style="background:#0d2818;color:#68d391">3</span>Almacenamiento</a>
+
+  <div class="nav-section">Observabilidad</div>
+  <a class="nav-item" href="#m4"><span class="num" style="background:#0a1a2e;color:#76e4f7">4</span>Prometheus + Grafana</a>
+  <a class="nav-item" href="#m5"><span class="num" style="background:#0a1a2e;color:#76e4f7">5</span>Loki + Promtail</a>
+  <a class="nav-item" href="#m6"><span class="num" style="background:#0a1a2e;color:#76e4f7">6</span>Tempo + OpenTelemetry</a>
+  <a class="nav-item" href="#m7"><span class="num" style="background:#1a0d2e;color:#b794f4">7</span>AlertManager</a>
+
+  <div class="nav-section">CI/CD & GitOps</div>
+  <a class="nav-item" href="#m8"><span class="num" style="background:#2d1500;color:#f6ad55">8</span>Tekton CI/CD</a>
+  <a class="nav-item" href="#m9"><span class="num" style="background:#2d1500;color:#f6ad55">9</span>ArgoCD GitOps</a>
+
+  <div class="nav-section">App Demo</div>
+  <a class="nav-item" href="#m10"><span class="num" style="background:#1a0a0a;color:#fc8181">10</span>Task Manager App</a>
+
+  <div class="nav-section">Ejercicios</div>
+  <a class="nav-item" href="#ex1">Ejercicios Básicos</a>
+  <a class="nav-item" href="#ex2">Ejercicios Medios</a>
+  <a class="nav-item" href="#ex3">Ejercicios Avanzados</a>
+  <a class="nav-item" href="#ref">Referencia Rápida</a>
+</nav>
+
+<!-- ══════════════════════ MAIN ══════════════════════ -->
+<main class="main">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-title">Concentrado Global</div>
+  <div class="hero-sub">Todo el bootcamp en un solo documento — conceptos, comandos y ejercicios por tema</div>
+  <div class="pill-row">
+    <div class="pill">📦 Kubernetes v1.28</div>
+    <div class="pill">🔧 Ansible</div>
+    <div class="pill">💾 NFS CSI Driver</div>
+    <div class="pill">📊 Prometheus</div>
+    <div class="pill">📈 Grafana</div>
+    <div class="pill">📋 Loki</div>
+    <div class="pill">🔍 Tempo</div>
+    <div class="pill">🔔 AlertManager</div>
+    <div class="pill">⚙️ Tekton</div>
+    <div class="pill">🔄 ArgoCD</div>
+    <div class="pill">🐍 Flask + OpenTelemetry</div>
+  </div>
+</div>
+
+<!-- ══════ M1: FUNDAMENTOS K8S ══════ -->
+<section class="module" id="m1">
+  <div class="module-header">
+    <div class="module-num" style="background:#0d2818;color:#68d391;border:2px solid #276749">1</div>
+    <div>
+      <div class="module-title" style="color:#68d391">Fundamentos de Kubernetes</div>
+      <div class="module-sub">Arquitectura, objetos esenciales y kubectl básico</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Arquitectura del Cluster</div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title" style="color:#76e4f7">🧠 Control Plane (master)</div>
+        <div class="concept-list">
+          <div class="concept"><div class="concept-icon">🔌</div><div><div class="concept-name">kube-apiserver</div><div class="concept-desc">Punto de entrada a todo el cluster. Todo pasa por aquí.</div></div></div>
+          <div class="concept"><div class="concept-icon">🗄️</div><div><div class="concept-name">etcd</div><div class="concept-desc">Base de datos clave-valor. Guarda el estado completo del cluster.</div></div></div>
+          <div class="concept"><div class="concept-icon">📅</div><div><div class="concept-name">kube-scheduler</div><div class="concept-desc">Decide en qué nodo corre cada Pod (CPU, RAM, afinidad).</div></div></div>
+          <div class="concept"><div class="concept-icon">🔄</div><div><div class="concept-name">controller-manager</div><div class="concept-desc">Mantiene el estado deseado (ej: si un Pod muere, lo recrea).</div></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#68d391">🖥️ Worker Nodes</div>
+        <div class="concept-list">
+          <div class="concept"><div class="concept-icon">🤖</div><div><div class="concept-name">kubelet</div><div class="concept-desc">Agente en cada nodo. Recibe órdenes del API server y gestiona los pods.</div></div></div>
+          <div class="concept"><div class="concept-icon">🌐</div><div><div class="concept-name">kube-proxy</div><div class="concept-desc">Gestiona las reglas de red (iptables/ipvs) para que los Services funcionen.</div></div></div>
+          <div class="concept"><div class="concept-icon">🐳</div><div><div class="concept-name">container runtime</div><div class="concept-desc">Ejecuta los contenedores. En nuestro cluster: containerd.</div></div></div>
+          <div class="concept"><div class="concept-icon">🔗</div><div><div class="concept-name">CNI (Flannel/Calico)</div><div class="concept-desc">Plugin de red. Asigna IPs a los Pods y permite comunicación entre nodos.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Objetos Esenciales</div>
+    <table>
+      <tr><th>Objeto</th><th>¿Qué hace?</th><th>Cuándo usarlo</th></tr>
+      <tr><td><strong style="color:#76e4f7">Pod</strong></td><td>Unidad mínima. Uno o más contenedores con red y almacenamiento compartido</td><td>Raramente directo — usa Deployment</td></tr>
+      <tr><td><strong style="color:#76e4f7">Deployment</strong></td><td>Gestiona réplicas de Pods. Soporta rolling updates y rollback</td><td>Apps stateless (API, frontend)</td></tr>
+      <tr><td><strong style="color:#76e4f7">StatefulSet</strong></td><td>Pods con identidad estable y almacenamiento persistente por pod</td><td>Bases de datos (PostgreSQL, Redis)</td></tr>
+      <tr><td><strong style="color:#76e4f7">DaemonSet</strong></td><td>Un Pod por nodo del cluster</td><td>Agentes (Promtail, Node Exporter)</td></tr>
+      <tr><td><strong style="color:#76e4f7">Service</strong></td><td>Expone Pods con IP estable y balanceo de carga</td><td>Siempre, junto a Deployment</td></tr>
+      <tr><td><strong style="color:#76e4f7">ConfigMap</strong></td><td>Configuración no sensible como archivos o variables</td><td>Config de apps, archivos YAML</td></tr>
+      <tr><td><strong style="color:#76e4f7">Secret</strong></td><td>Datos sensibles codificados en base64</td><td>Passwords, tokens, certificados</td></tr>
+      <tr><td><strong style="color:#76e4f7">Namespace</strong></td><td>Aislamiento lógico dentro del cluster</td><td>Separar entornos o equipos</td></tr>
+      <tr><td><strong style="color:#76e4f7">Job / CronJob</strong></td><td>Tarea única o programada</td><td>Migraciones, backups, reportes</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Tipos de Service</div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title" style="color:#68d391">ClusterIP</div>
+        <div class="card-body">IP interna solo accesible dentro del cluster.<br><br><strong>Uso:</strong> comunicación entre microservicios. Ej: <code>postgres.tasks.svc:5432</code></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#f6ad55">NodePort</div>
+        <div class="card-body">Expone el servicio en un puerto fijo de cada nodo (30000–32767).<br><br><strong>Uso:</strong> acceso desde fuera del cluster en laboratorio. Ej: <code>:30900</code></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#76e4f7">LoadBalancer</div>
+        <div class="card-body">Crea un load balancer externo (cloud provider).<br><br><strong>Uso:</strong> producción en AWS/GCP/Azure. Asigna IP pública automáticamente.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Comandos kubectl esenciales</div>
+    <div class="code"><span class="c"># Ver recursos</span>
+<span class="g">kubectl get</span> pods,deployments,services,pvc -n &lt;namespace&gt;
+<span class="g">kubectl get</span> nodes -o wide
+<span class="g">kubectl describe</span> pod &lt;nombre&gt; -n &lt;namespace&gt;
+<span class="g">kubectl logs</span> &lt;pod&gt; -n &lt;namespace&gt; --tail=50 -f
+
+<span class="c"># Crear / aplicar</span>
+<span class="g">kubectl apply</span> -f archivo.yaml
+<span class="g">kubectl apply</span> -f directorio/
+
+<span class="c"># Escalar</span>
+<span class="g">kubectl scale</span> deployment mi-app -n tasks --replicas=3
+
+<span class="c"># Ejecutar comandos en un pod</span>
+<span class="g">kubectl exec</span> -it &lt;pod&gt; -n &lt;ns&gt; -- bash
+
+<span class="c"># Port forward</span>
+<span class="g">kubectl port-forward</span> svc/grafana 3000:3000 -n monitoring
+
+<span class="c"># Ver eventos del namespace (diagnóstico)</span>
+<span class="g">kubectl get events</span> -n &lt;namespace&gt; --sort-by='.lastTimestamp'
+
+<span class="c"># Eliminar</span>
+<span class="g">kubectl delete</span> pod &lt;nombre&gt; -n &lt;namespace&gt;
+<span class="g">kubectl delete</span> -f archivo.yaml</div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 1</span>
+      <span class="exercise-title">Deploy completo — Nginx con Service NodePort</span>
+      <span class="exercise-level lvl-basico">Básico</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Crea el namespace: <strong>kubectl create namespace practica</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Crea un Deployment con <strong>3 réplicas de nginx:alpine</strong> en ese namespace</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Expón el Deployment con un <strong>Service NodePort en el puerto 31080</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Verifica que responde: <strong>curl http://192.168.109.142:31080</strong></div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">Escala a <strong>1 réplica</strong> y verifica que el service sigue respondiendo</div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text"><strong>Bonus:</strong> elimina un Pod manualmente y observa cómo el Deployment lo recrea</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M2: INSTALACIÓN ANSIBLE ══════ -->
+<section class="module" id="m2">
+  <div class="module-header">
+    <div class="module-num" style="background:#0d2818;color:#68d391;border:2px solid #276749">2</div>
+    <div>
+      <div class="module-title" style="color:#68d391">Instalación del Cluster con Ansible</div>
+      <div class="module-sub">Automatización del provisionamiento: preparar nodos + kubeadm + CNI</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Flujo de instalación</div>
+    <div class="flow">
+      <div class="flow-box" style="border-color:#68d391;color:#68d391">📋 Inventario</div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#f6ad55;color:#f6ad55">🔧 Pre-requisitos</div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#76e4f7;color:#76e4f7">🚀 kubeadm init</div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#b794f4;color:#b794f4">🌐 CNI Flannel</div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#f687b3;color:#f687b3">🤝 Join workers</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Estructura del playbook</div>
+    <div class="grid-2">
+      <div class="code"><span class="c"># inventory.ini</span>
+[masters]
+master01 ansible_host=192.168.109.142
+
+[workers]
+worker01 ansible_host=192.168.109.143
+worker02 ansible_host=192.168.109.144
+worker03 ansible_host=192.168.109.145
+
+[all:vars]
+ansible_user=root
+ansible_python_interpreter=/usr/bin/python3</div>
+      <div class="code"><span class="c"># Tareas pre-requisito en cada nodo</span>
+<span class="p">- name:</span> Deshabilitar swap
+  command: swapoff -a
+
+<span class="p">- name:</span> Cargar módulos del kernel
+  modprobe: name={{ item }}
+  loop: [overlay, br_netfilter]
+
+<span class="p">- name:</span> Instalar containerd + kubeadm
+  yum:
+    name: [containerd, kubeadm,
+           kubelet, kubectl]
+    state: present</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Comandos clave post-Ansible</div>
+    <div class="code"><span class="c"># En master01 — inicializar el cluster</span>
+<span class="g">kubeadm init</span> \
+  --pod-network-cidr=10.244.0.0/16 \
+  --apiserver-advertise-address=192.168.109.142
+
+<span class="c"># Configurar kubectl para el usuario actual</span>
+mkdir -p $HOME/.kube
+cp /etc/kubernetes/admin.conf $HOME/.kube/config
+
+<span class="c"># Instalar CNI Flannel</span>
+<span class="g">kubectl apply</span> -f https://github.com/flannel-io/flannel/\
+  releases/latest/download/kube-flannel.yml
+
+<span class="c"># En cada worker — unirse al cluster</span>
+<span class="g">kubeadm join</span> 192.168.109.142:6443 \
+  --token &lt;token&gt; \
+  --discovery-token-ca-cert-hash sha256:&lt;hash&gt;
+
+<span class="c"># Verificar</span>
+<span class="g">kubectl get nodes</span>   <span class="c"># todos deben estar Ready</span></div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 2</span>
+      <span class="exercise-title">Verificación post-instalación del cluster</span>
+      <span class="exercise-level lvl-basico">Básico</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Ejecuta <strong>kubectl get nodes -o wide</strong> — todos deben estar <strong>Ready</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Verifica los pods del sistema: <strong>kubectl get pods -n kube-system</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Comprueba que el CNI funciona: despliega dos pods en distintos workers y haz ping entre ellos</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Bonus:</strong> Anota el comando <code>kubeadm token create --print-join-command</code> — ¿cuándo lo necesitas?</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M3: ALMACENAMIENTO ══════ -->
+<section class="module" id="m3">
+  <div class="module-header">
+    <div class="module-num" style="background:#0d2818;color:#68d391;border:2px solid #276749">3</div>
+    <div>
+      <div class="module-title" style="color:#68d391">Almacenamiento — PV, PVC y CSI Driver</div>
+      <div class="module-sub">Persistencia de datos en Kubernetes con NFS</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Conceptos de almacenamiento</div>
+    <div class="grid-2">
+      <div class="concept-list">
+        <div class="concept"><div class="concept-icon">💾</div><div><div class="concept-name">PersistentVolume (PV)</div><div class="concept-desc">Recurso de almacenamiento en el cluster. Lo crea el admin o el CSI Driver automáticamente.</div></div></div>
+        <div class="concept"><div class="concept-icon">📋</div><div><div class="concept-name">PersistentVolumeClaim (PVC)</div><div class="concept-desc">Solicitud de almacenamiento hecha por una app. "Quiero 5Gi con acceso lectura-escritura".</div></div></div>
+        <div class="concept"><div class="concept-icon">🏷️</div><div><div class="concept-name">StorageClass</div><div class="concept-desc">Define el "tipo" de almacenamiento y cómo provisionarlo automáticamente (dynamic provisioning).</div></div></div>
+        <div class="concept"><div class="concept-icon">🔌</div><div><div class="concept-name">CSI Driver</div><div class="concept-desc">Container Storage Interface. Plugin que conecta K8s con el storage real (NFS, AWS EBS, GCP PD).</div></div></div>
+      </div>
+      <div class="code"><span class="c"># StorageClass NFS (ya instalada)</span>
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: <span class="o">nfs-csi</span>
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: 192.168.109.210
+  share: /srv/nfs/k8s
+reclaimPolicy: Retain
+---
+<span class="c"># PVC — la app pide 5Gi</span>
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: <span class="o">mi-datos</span>
+  namespace: tasks
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: <span class="o">nfs-csi</span>
+  resources:
+    requests:
+      storage: 5Gi</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Access Modes</div>
+    <table>
+      <tr><th>Mode</th><th>Abreviación</th><th>Significado</th><th>Uso típico</th></tr>
+      <tr><td><strong>ReadWriteOnce</strong></td><td>RWO</td><td>Montado en lectura-escritura por UN nodo</td><td>PostgreSQL, MySQL</td></tr>
+      <tr><td><strong>ReadOnlyMany</strong></td><td>ROX</td><td>Montado en solo lectura por MUCHOS nodos</td><td>Assets estáticos</td></tr>
+      <tr><td><strong>ReadWriteMany</strong></td><td>RWX</td><td>Montado en lectura-escritura por MUCHOS nodos</td><td>NFS compartido, logs</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">StatefulSet con PVC — patrón completo</div>
+    <div class="code"><span class="c"># StatefulSet de PostgreSQL (simplificado)</span>
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: <span class="o">postgres</span>
+  namespace: tasks
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+          <span class="p">volumeMounts:</span>
+            - name: <span class="o">data</span>
+              mountPath: /var/lib/postgresql/data
+  <span class="p">volumeClaimTemplates:</span>             <span class="c"># PVC automático por réplica</span>
+    - metadata:
+        name: <span class="o">data</span>
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: nfs-csi
+        resources:
+          requests:
+            storage: 2Gi</div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 3</span>
+      <span class="exercise-title">Persistencia real — Sobrevivir al reinicio del Pod</span>
+      <span class="exercise-level lvl-medio">Medio</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Despliega el StatefulSet de postgres en namespace <strong>practica</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Conéctate al pod y crea una tabla: <strong>kubectl exec -it postgres-0 -- psql -U postgres -c "CREATE TABLE test (id serial, msg text);"</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Inserta un registro: <strong>INSERT INTO test (msg) VALUES ('hola mundo');</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Elimina el pod</strong>: kubectl delete pod postgres-0 -n practica</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">Espera que se recree y verifica que el dato sigue ahí: <strong>SELECT * FROM test;</strong></div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text"><strong>Bonus:</strong> ¿Qué pasaría si usaras <code>emptyDir</code> en vez de PVC?</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M4: PROMETHEUS + GRAFANA ══════ -->
+<section class="module" id="m4">
+  <div class="module-header">
+    <div class="module-num" style="background:#0a1a2e;color:#76e4f7;border:2px solid #2b4a7a">4</div>
+    <div>
+      <div class="module-title" style="color:#76e4f7">Prometheus + Grafana — Métricas</div>
+      <div class="module-sub">El primer pilar de observabilidad: medir todo lo que importa</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Arquitectura de métricas</div>
+    <div class="flow">
+      <div class="flow-box" style="border-color:#68d391;color:#68d391">🖥️ Node Exporter<br><small>CPU/RAM/Disco del SO</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#68d391;color:#68d391">📦 kube-state-metrics<br><small>Estado de objetos K8s</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#f6ad55;color:#f6ad55">📊 Prometheus<br><small>Scrape + Almacena</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#f687b3;color:#f687b3">📈 Grafana<br><small>Dashboards + Alerts</small></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Tipos de métricas Prometheus</div>
+    <div class="grid-2">
+      <div class="concept-list">
+        <div class="concept"><div class="concept-icon">📈</div><div><div class="concept-name">Counter</div><div class="concept-desc">Solo sube. Ej: <code>tasks_created_total</code>. Para saber cuántas veces pasó algo. Usa <code>rate()</code> para ver la velocidad.</div></div></div>
+        <div class="concept"><div class="concept-icon">🌡️</div><div><div class="concept-name">Gauge</div><div class="concept-desc">Sube y baja. Ej: <code>node_memory_MemFree_bytes</code>. Valor actual en un momento dado.</div></div></div>
+        <div class="concept"><div class="concept-icon">📊</div><div><div class="concept-name">Histogram</div><div class="concept-desc">Mide distribución de valores. Ej: latencia de requests. Permite calcular percentiles p50, p95, p99.</div></div></div>
+        <div class="concept"><div class="concept-icon">📋</div><div><div class="concept-name">Summary</div><div class="concept-desc">Similar a Histogram pero los percentiles se calculan en el cliente, no en Prometheus.</div></div></div>
+      </div>
+      <div class="code"><span class="c"># PromQL — Queries esenciales</span>
+
+<span class="c"># CPU de los nodos (últimos 5 min)</span>
+100 - (avg by(instance) (
+  rate(node_cpu_seconds_total
+    {mode="idle"}[5m])) * 100)
+
+<span class="c"># Memoria usada por namespace</span>
+sum by(namespace) (
+  container_memory_usage_bytes
+  {container!=""})
+
+<span class="c"># Tasa de errores 5xx de la app</span>
+rate(flask_http_request_total
+  {status=~"5.."}[5m])
+
+<span class="c"># Replicas disponibles</span>
+kube_deployment_status_replicas_available
+  {namespace="tasks"}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Scrape con anotaciones</div>
+    <div class="code"><span class="c"># En el Deployment — annotations para auto-scrape</span>
+metadata:
+  annotations:
+    <span class="p">prometheus.io/scrape: "true"</span>
+    <span class="p">prometheus.io/port:   "8080"</span>
+    <span class="p">prometheus.io/path:   "/metrics"</span>
+
+<span class="c"># En prometheus.yml — job que lee las anotaciones</span>
+- job_name: 'kubernetes-pods'
+  kubernetes_sd_configs:
+    - role: pod
+  relabel_configs:
+    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+      action: keep
+      regex: <span class="o">true</span></div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 4</span>
+      <span class="exercise-title">Dashboard custom en Grafana</span>
+      <span class="exercise-level lvl-medio">Medio</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Abre Grafana en <strong>http://192.168.109.142:30300</strong> (admin/bootcamp2026)</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Crea un nuevo dashboard con 4 panels:<br>• CPU % por nodo<br>• Memoria usada por namespace<br>• Réplicas disponibles de tasks-api<br>• tasks_created_total rate</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Configura el panel de réplicas con un <strong>threshold rojo cuando value &lt; 2</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text"><strong>Bonus:</strong> Importa el dashboard comunitario <strong>ID 3119</strong> (Kubernetes cluster monitoring)</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M5: LOKI + PROMTAIL ══════ -->
+<section class="module" id="m5">
+  <div class="module-header">
+    <div class="module-num" style="background:#0a1a2e;color:#76e4f7;border:2px solid #2b4a7a">5</div>
+    <div>
+      <div class="module-title" style="color:#76e4f7">Loki + Promtail — Logs Centralizados</div>
+      <div class="module-sub">El segundo pilar: recolectar y consultar logs de todos los pods</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Arquitectura de logs</div>
+    <div class="flow">
+      <div class="flow-box" style="border-color:#68d391;color:#68d391">📝 Pod logs<br><small>stdout/stderr</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#68d391;color:#68d391">🔦 Promtail<br><small>DaemonSet agente</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#76e4f7;color:#76e4f7">📋 Loki<br><small>Almacena 7 días</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#f687b3;color:#f687b3">📈 Grafana Explore<br><small>Consulta LogQL</small></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">LogQL — Queries de logs</div>
+    <div class="grid-2">
+      <div>
+        <div class="code"><span class="c"># Filtros básicos</span>
+
+<span class="c"># Logs de todos los pods de tasks-api</span>
+{namespace="tasks",app="tasks-api"}
+
+<span class="c"># Solo logs de error</span>
+{namespace="tasks"} |= "ERROR"
+
+<span class="c"># Filtro por nivel JSON</span>
+{namespace="tasks"}
+  | json | level="error"
+
+<span class="c"># Logs de un pod específico</span>
+{pod="tasks-api-xxx"}</div>
+      </div>
+      <div>
+        <div class="code"><span class="c"># Queries avanzadas</span>
+
+<span class="c"># Tasa de logs por minuto</span>
+rate({namespace="tasks"}[1m])
+
+<span class="c"># Contar errores en últimos 5 min</span>
+count_over_time(
+  {namespace="tasks"} |= "ERROR" [5m])
+
+<span class="c"># Buscar requests lentos</span>
+{app="tasks-api"}
+  | json
+  | duration > 500ms</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 5</span>
+      <span class="exercise-title">Investigar un error con logs</span>
+      <span class="exercise-level lvl-medio">Medio</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Abre Grafana → Explore → selecciona datasource <strong>Loki</strong></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Escribe la query: <strong>{namespace="tasks"}</strong> y observa los logs en tiempo real</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Filtra solo los logs que contienen <strong>"health"</strong>: agrega <code>|= "health"</code></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Desde terminal, crea una tarea en la app y busca en Loki los logs de ese request</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text"><strong>Bonus:</strong> Crea un panel en Grafana que muestre un <strong>log stream</strong> de tasks-api</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M6: TEMPO + OTEL ══════ -->
+<section class="module" id="m6">
+  <div class="module-header">
+    <div class="module-num" style="background:#0a1a2e;color:#76e4f7;border:2px solid #2b4a7a">6</div>
+    <div>
+      <div class="module-title" style="color:#76e4f7">Tempo + OpenTelemetry — Trazas Distribuidas</div>
+      <div class="module-sub">El tercer pilar: seguir una request de principio a fin</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Conceptos de trazas</div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-title" style="color:#76e4f7">🔍 Trace</div>
+        <div class="card-body">Registro completo de una request de extremo a extremo. Tiene un <strong>trace_id</strong> único. Contiene múltiples spans.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#68d391">📏 Span</div>
+        <div class="card-body">Una operación individual dentro de la traza. Tiene inicio, duración y atributos. Los spans se anidan formando un árbol.</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color:#f6ad55">🏷️ Atributos</div>
+        <div class="card-body">Metadatos del span. Ej: <code>db.system=postgresql</code>, <code>http.method=POST</code>, <code>task.id=42</code></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Instrumentación en Python</div>
+    <div class="code"><span class="c"># Configuración OpenTelemetry (una sola vez)</span>
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+resource = Resource(attributes={<span class="p">"service.name"</span>: <span class="o">"tasks-api"</span>})
+provider = TracerProvider(resource=resource)
+provider.add_span_processor(
+  BatchSpanProcessor(
+    OTLPSpanExporter(endpoint=<span class="o">"http://tempo.monitoring.svc:4318/v1/traces"</span>)
+  )
+)
+trace.set_tracer_provider(provider)
+tracer = trace.get_tracer(__name__)
+
+<span class="c"># Crear spans manuales (anidados)</span>
+@app.route("/tasks", methods=["POST"])
+def create_task():
+    with tracer.start_as_current_span(<span class="o">"create-task"</span>) as span:
+        span.set_attribute("task.title", title)
+        with tracer.start_as_current_span(<span class="o">"db.insert-task"</span>) as db_span:
+            db_span.set_attribute("db.system", "postgresql")
+            db_span.set_attribute("db.operation", "INSERT")
+            <span class="c"># ... ejecutar INSERT ...</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">TraceQL — Buscar trazas en Tempo</div>
+    <div class="code"><span class="c"># En Grafana → Explore → Tempo → TraceQL</span>
+
+<span class="c"># Todas las trazas del servicio</span>
+{resource.service.name=<span class="o">"tasks-api"</span>}
+
+<span class="c"># Trazas de un endpoint específico</span>
+{resource.service.name=<span class="o">"tasks-api"</span> &amp;&amp; name=<span class="o">"create-task"</span>}
+
+<span class="c"># Trazas con error</span>
+{resource.service.name=<span class="o">"tasks-api"</span> &amp;&amp; status=error}
+
+<span class="c"># Trazas lentas (más de 500ms)</span>
+{resource.service.name=<span class="o">"tasks-api"</span>} | duration > 500ms</div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 6</span>
+      <span class="exercise-title">Investigar una operación con trazas</span>
+      <span class="exercise-level lvl-medio">Medio</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Abre la Task Manager app en <strong>http://192.168.109.142:30880</strong> y crea 3 tareas</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Abre Grafana → Explore → <strong>Tempo</strong> → busca con TraceQL: <code>{resource.service.name="tasks-api" && name="create-task"}</code></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Abre una traza y verifica los <strong>2 spans anidados</strong>: create-task → db.insert-task</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Examina los atributos del span <code>db.insert-task</code>: db.system, db.operation, db.rows_affected</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text"><strong>Bonus:</strong> En el código de <code>app.py</code>, agrega un atributo custom al span <code>create-task</code>: el número total de tareas existentes</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M7: ALERTMANAGER ══════ -->
+<section class="module" id="m7">
+  <div class="module-header">
+    <div class="module-num" style="background:#1a0d2e;color:#b794f4;border:2px solid #553c9a">7</div>
+    <div>
+      <div class="module-title" style="color:#b794f4">AlertManager — Alertas y Notificaciones</div>
+      <div class="module-sub">Definir condiciones críticas y notificar al equipo correcto</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Ciclo de vida de una alerta</div>
+    <div class="flow">
+      <div class="flow-box" style="border-color:#4a9eff;color:#4a9eff">⚪ INACTIVE<br><small>condición falsa</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#f6ad55;color:#f6ad55">🟡 PENDING<br><small>condición true, esperando for:</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#fc8181;color:#fc8181">🔴 FIRING<br><small>confirmada, AlertManager actúa</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#68d391;color:#68d391">✅ RESOLVED<br><small>condición vuelve a false</small></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Anatomía de una regla</div>
+    <div class="code">groups:
+  - name: <span class="o">tasks-app-alerts</span>
+    rules:
+      - alert: <span class="p">TasksApiDown</span>
+        <span class="c"># La condición PromQL que evalúa cada 15s</span>
+        expr: kube_deployment_status_replicas_available
+               {namespace="tasks",deployment="tasks-api"} == 0
+        <span class="c"># Debe cumplirse durante 1 minuto para pasar a FIRING</span>
+        for: <span class="o">1m</span>
+        labels:
+          severity: <span class="p">critical</span>   <span class="c"># se usa para enrutar en AlertManager</span>
+          team: platform
+        annotations:
+          summary: <span class="o">"Task Manager sin réplicas"</span>
+          description: <span class="o">"tasks-api en namespace tasks tiene 0 réplicas"</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Las 4 reglas del Task Manager</div>
+    <table>
+      <tr><th>Alerta</th><th>Severidad</th><th>for:</th><th>Qué detecta</th></tr>
+      <tr><td style="color:#fc8181">TasksApiDown</td><td>critical</td><td>1m</td><td>tasks-api con 0 réplicas disponibles</td></tr>
+      <tr><td style="color:#fc8181">TasksPostgresDown</td><td>critical</td><td>1m</td><td>PostgreSQL StatefulSet sin réplicas listas</td></tr>
+      <tr><td style="color:#f6ad55">TasksApiHighErrorRate</td><td>warning</td><td>2m</td><td>Tasa de errores 5xx > 5% por 2 minutos</td></tr>
+      <tr><td style="color:#f6ad55">TasksPostgresDiskHigh</td><td>warning</td><td>5m</td><td>PVC de PostgreSQL usando > 80% capacidad</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Demo completa — Disparar y resolver alertas</div>
+    <div class="code"><span class="c"># Paso 1: Suspender ArgoCD (para que no restaure automáticamente)</span>
+<span class="g">kubectl patch</span> application tasks-api -n argocd \
+  --type=merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
+
+<span class="c"># Paso 2: Romper la app (escalar a 0)</span>
+<span class="g">kubectl scale</span> deployment tasks-api -n tasks --replicas=0
+
+<span class="c"># Paso 3: Esperar y ver PENDING → FIRING (~90s)</span>
+<span class="c"># http://192.168.109.142:30900/alerts</span>
+
+<span class="c"># Paso 4: Romper PostgreSQL</span>
+<span class="g">kubectl scale</span> statefulset postgres -n tasks --replicas=0
+
+<span class="c"># Paso 5: Ver ambas alertas en AlertManager</span>
+<span class="c"># http://192.168.109.142:30903</span>
+
+<span class="c"># Paso 6: Restaurar TODO</span>
+<span class="g">kubectl scale</span> deployment tasks-api -n tasks --replicas=2
+<span class="g">kubectl scale</span> statefulset postgres -n tasks --replicas=1
+<span class="g">kubectl patch</span> application tasks-api -n argocd \
+  --type=merge -p '{"spec":{"syncPolicy":{"automated":{"prune":true,"selfHeal":true}}}}'</div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 7</span>
+      <span class="exercise-title">Crear y disparar una nueva regla de alerta</span>
+      <span class="exercise-level lvl-avanzado">Avanzado</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Agrega una nueva regla en <code>monitoring/03-prometheus.yaml</code>:<br><strong>PodRestartAlert</strong> — alerta cuando un pod reinicia más de 3 veces en 15 minutos</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Aplica el ConfigMap y recarga: <strong>kubectl apply -f</strong> + <strong>curl -X POST http://:30900/-/reload</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Verifica que la regla aparece en <strong>http://192.168.109.142:30900/rules</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Provoca reinicios modificando una variable de entorno incorrecta en tasks-api</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">Confirma la alerta en FIRING y restaura</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M8: TEKTON ══════ -->
+<section class="module" id="m8">
+  <div class="module-header">
+    <div class="module-num" style="background:#2d1500;color:#f6ad55;border:2px solid #744210">8</div>
+    <div>
+      <div class="module-title" style="color:#f6ad55">Tekton CI/CD — Pipelines en Kubernetes</div>
+      <div class="module-sub">Build, test y push de imágenes directamente en el cluster</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Objetos de Tekton</div>
+    <div class="grid-2">
+      <div class="concept-list">
+        <div class="concept"><div class="concept-icon">🧩</div><div><div class="concept-name">Task</div><div class="concept-desc">Unidad de trabajo reutilizable. Serie de Steps (contenedores). Ej: git-clone, kaniko-build.</div></div></div>
+        <div class="concept"><div class="concept-icon">🔗</div><div><div class="concept-name">Pipeline</div><div class="concept-desc">Secuencia de Tasks conectadas. Define el orden y los parámetros de cada Task.</div></div></div>
+        <div class="concept"><div class="concept-icon">▶️</div><div><div class="concept-name">PipelineRun</div><div class="concept-desc">Ejecución concreta de un Pipeline. Crea los Pods necesarios y los elimina al terminar.</div></div></div>
+        <div class="concept"><div class="concept-icon">💼</div><div><div class="concept-name">Workspace</div><div class="concept-desc">Volumen compartido entre Tasks. El código clonado en git-clone lo usa la Task de build.</div></div></div>
+      </div>
+      <div class="code"><span class="c"># Flujo del pipeline tasks-api</span>
+
+<span class="o">Task 1:</span> kaniko-build-push
+  - Clona el repo desde Git
+  - Construye la imagen con Kaniko
+  - Push a Docker Hub
+
+<span class="o">Task 2:</span> update-image-tag
+  - Actualiza el tag en k8s/02-app.yaml
+  - Git commit + push
+
+<span class="c"># ArgoCD detecta el cambio en Git</span>
+<span class="c"># y despliega la nueva versión automáticamente</span>
+<span class="c"># → CI/CD completo sin Jenkins!</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">PipelineRun — Ejecutar el pipeline</div>
+    <div class="code"><span class="c"># Crear un PipelineRun manual</span>
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: <span class="o">tasks-api-run-001</span>
+  namespace: tekton-pipelines
+spec:
+  pipelineRef:
+    name: tasks-api-pipeline
+  params:
+    - name: image-tag
+      value: <span class="o">"v1.0.3"</span>
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources: { requests: { storage: 1Gi } }
+  podTemplate:
+    securityContext: { fsGroup: 65532 }
+
+<span class="c"># Aplicar y monitorear</span>
+<span class="g">kubectl apply</span> -f pipelinerun.yaml -n tekton-pipelines
+<span class="g">kubectl get pipelinerun</span> -n tekton-pipelines -w</div>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 8</span>
+      <span class="exercise-title">Pipeline completo — Cambio en código → Deploy automático</span>
+      <span class="exercise-level lvl-avanzado">Avanzado</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Modifica <code>app.py</code> — cambia el texto del título HTML de "Task Manager" a "Task Manager 🚀"</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Haz commit y push a GitHub: <strong>git add app.py && git commit -m "update title" && git push</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Crea un nuevo PipelineRun con tag <strong>v1.0.4</strong> y aplícalo</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Observa el pipeline en tiempo real: <strong>kubectl get taskrun -n tekton-pipelines -w</strong></div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">Espera que ArgoCD detecte el cambio en Git y haga el deploy</div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text">Verifica el cambio en <strong>http://192.168.109.142:30880</strong></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M9: ARGOCD ══════ -->
+<section class="module" id="m9">
+  <div class="module-header">
+    <div class="module-num" style="background:#2d1500;color:#f6ad55;border:2px solid #744210">9</div>
+    <div>
+      <div class="module-title" style="color:#f6ad55">ArgoCD — GitOps</div>
+      <div class="module-sub">Git como fuente de verdad — el cluster siempre refleja el repositorio</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">El principio GitOps</div>
+    <div class="grid-2">
+      <div class="card" style="border-color:#f6ad55">
+        <div class="card-title orange">📖 Sin GitOps</div>
+        <div class="card-body" style="line-height:2">kubectl apply manual → nadie sabe qué está en el cluster<br>Cambio de emergencia directo → inconsistencia con Git<br>Rollback = recordar qué había antes</div>
+      </div>
+      <div class="card" style="border-color:#68d391">
+        <div class="card-title" style="color:#68d391">🔄 Con GitOps (ArgoCD)</div>
+        <div class="card-body" style="line-height:2">Git es la única fuente de verdad<br>ArgoCD sincroniza automáticamente cada cambio<br>Rollback = <code>git revert</code></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Application manifest</div>
+    <div class="code">apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: <span class="o">tasks-api</span>
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/dguerrero11/k8s-final
+    targetRevision: main
+    path: <span class="o">app-tasks/k8s</span>        <span class="c"># carpeta con los YAMLs</span>
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: <span class="o">tasks</span>
+  syncPolicy:
+    automated:
+      prune: <span class="p">true</span>           <span class="c"># elimina recursos que ya no están en Git</span>
+      selfHeal: <span class="p">true</span>        <span class="c"># restaura si alguien cambia el cluster a mano</span>
+    syncOptions:
+      - CreateNamespace=true</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Estados de sincronización</div>
+    <table>
+      <tr><th>Sync Status</th><th>Health Status</th><th>Significado</th></tr>
+      <tr><td style="color:#68d391">Synced</td><td style="color:#68d391">Healthy</td><td>✅ Todo bien. Cluster == Git</td></tr>
+      <tr><td style="color:#f6ad55">OutOfSync</td><td style="color:#68d391">Healthy</td><td>⚠️ Alguien cambió el cluster manualmente. ArgoCD lo corregirá.</td></tr>
+      <tr><td style="color:#68d391">Synced</td><td style="color:#fc8181">Degraded</td><td>🔴 Los recursos están desplegados pero los pods tienen errores</td></tr>
+      <tr><td style="color:#fc8181">OutOfSync</td><td style="color:#fc8181">Missing</td><td>🔴 Recursos en Git pero no en el cluster</td></tr>
+    </table>
+  </div>
+
+  <div class="exercise">
+    <div class="exercise-header">
+      <span class="exercise-badge">EJERCICIO 9</span>
+      <span class="exercise-title">Observar el selfHeal de ArgoCD en acción</span>
+      <span class="exercise-level lvl-medio">Medio</span>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Verifica el estado inicial: <strong>kubectl get application tasks-api -n argocd</strong> → Synced Healthy</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Cambia las réplicas manualmente: <strong>kubectl scale deployment tasks-api -n tasks --replicas=5</strong></div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Observa en tiempo real: <strong>kubectl get application tasks-api -n argocd -w</strong></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">¿Cuántos segundos tarda ArgoCD en detectar el drift y restaurar a 2 réplicas?</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text"><strong>Bonus:</strong> ¿Cómo harías un cambio permanente de réplicas sin que ArgoCD lo revierta?</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ M10: TASK MANAGER APP ══════ -->
+<section class="module" id="m10">
+  <div class="module-header">
+    <div class="module-num" style="background:#1a0a0a;color:#fc8181;border:2px solid #742424">10</div>
+    <div>
+      <div class="module-title" style="color:#fc8181">Task Manager App — Demo Completo</div>
+      <div class="module-sub">Flask + PostgreSQL + OpenTelemetry + Prometheus — todo integrado</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Stack del Task Manager</div>
+    <div class="flow">
+      <div class="flow-box" style="border-color:#f687b3;color:#f687b3">🌐 Browser</div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#fc8181;color:#fc8181">🐍 Flask :8080<br><small>tasks-api</small></div><div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color:#68d391;color:#68d391">🐘 PostgreSQL :5432<br><small>postgres StatefulSet</small></div>
+    </div>
+    <div class="flow" style="margin-top:8px">
+      <div class="flow-box" style="border-color:#f6ad55;color:#f6ad55">📊 /metrics → Prometheus</div><div class="flow-arrow">+</div>
+      <div class="flow-box" style="border-color:#76e4f7;color:#76e4f7">🔍 Spans → Tempo :4318</div><div class="flow-arrow">+</div>
+      <div class="flow-box" style="border-color:#b794f4;color:#b794f4">📋 logs → Loki</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Errores que encontramos y cómo los resolvimos</div>
+    <table>
+      <tr><th>Error</th><th>Causa</th><th>Solución</th></tr>
+      <tr><td style="color:#fc8181">AttributeError: 'function' has no attribute 'inc'</td><td>metrics.counter() de prometheus_flask_exporter devuelve un decorador, no un Counter</td><td>Importar Counter directamente desde <code>prometheus_client</code></td></tr>
+      <tr><td style="color:#fc8181">Solo 1 span en Tempo (sin spans DB)</td><td>RealDictCursor es incompatible con la auto-instrumentación de psycopg2</td><td>Crear spans DB manualmente con <code>tracer.start_as_current_span()</code></td></tr>
+      <tr><td style="color:#fc8181">Alertas desaparecen tras escalar a 0</td><td>ArgoCD selfHeal restaura las réplicas antes del <code>for: 1m</code></td><td>Suspender <code>automated</code> en ArgoCD antes del experimento</td></tr>
+      <tr><td style="color:#fc8181">Podman push "access denied"</td><td>No autenticado en Docker Hub</td><td><code>podman login docker.io -u guerrero11dan</code></td></tr>
+      <tr><td style="color:#fc8181">Build usa código cacheado</td><td>Podman usa capas cacheadas</td><td><code>podman build --no-cache</code></td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Estructura de archivos del proyecto</div>
+    <div class="code">k8s-final/
+├── <span class="o">app-tasks/</span>
+│   ├── app.py              <span class="c"># Flask + OTel + Prometheus</span>
+│   ├── requirements.txt    <span class="c"># dependencias Python</span>
+│   ├── Dockerfile          <span class="c"># multi-stage, UID 1001</span>
+│   └── k8s/
+│       ├── 00-namespace.yaml     <span class="c"># ns tasks + PSA baseline</span>
+│       ├── 01-postgres.yaml      <span class="c"># Secret + StatefulSet + Service</span>
+│       └── 02-app.yaml           <span class="c"># Deployment + NodePort :30880</span>
+├── <span class="o">monitoring/</span>
+│   ├── 00-namespace.yaml         <span class="c"># ns monitoring</span>
+│   ├── 01-node-exporter.yaml     <span class="c"># DaemonSet métricas SO</span>
+│   ├── 02-kube-state-metrics.yaml
+│   ├── 03-prometheus.yaml        <span class="c"># + reglas de alerta</span>
+│   ├── 04-grafana.yaml
+│   ├── 05-loki.yaml              <span class="c"># NodePort :30100</span>
+│   ├── 06-promtail.yaml
+│   ├── 07-tempo.yaml             <span class="c"># NodePort :30200</span>
+│   └── 08-alertmanager.yaml      <span class="c"># NodePort :30903</span>
+├── <span class="o">tekton/</span>
+│   └── tasks-pipeline.yaml
+├── <span class="o">argocd/</span>
+│   └── app-tasks.yaml
+└── presentacion.html</div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════ EJERCICIOS BÁSICOS ══════ -->
+<section class="module" id="ex1">
+  <div class="module-header">
+    <div class="module-num" style="background:#0d2818;color:#68d391;border:2px solid #276749;font-size:14px">🟢</div>
+    <div>
+      <div class="module-title" style="color:#68d391">Ejercicios Básicos</div>
+      <div class="module-sub">Para consolidar los fundamentos antes de pasar al siguiente nivel</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="exercise" style="margin-top:0">
+      <div class="exercise-header">
+        <span class="exercise-badge">B-1</span>
+        <span class="exercise-title">Ciclo de vida de un Pod</span>
+        <span class="exercise-level lvl-basico">Básico</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Crea un Pod simple con imagen <strong>busybox</strong> que ejecute <code>sleep 3600</code></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Ejecuta un comando dentro del pod: <strong>kubectl exec -it busybox -- echo "hola"</strong></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Mata el proceso sleep desde dentro. ¿El Pod se reinicia o muere?</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Repite con <strong>restartPolicy: Never</strong> y observa la diferencia</div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0">
+      <div class="exercise-header">
+        <span class="exercise-badge">B-2</span>
+        <span class="exercise-title">ConfigMap y Secret en práctica</span>
+        <span class="exercise-level lvl-basico">Básico</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Crea un ConfigMap con <strong>APP_ENV=desarrollo</strong> y <strong>APP_VERSION=2.0</strong></div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Crea un Secret con <strong>DB_PASS=secreto123</strong></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Despliega un pod nginx que las consuma como variables de entorno</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Verifica: <strong>kubectl exec -it pod -- env | grep APP</strong></div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0">
+      <div class="exercise-header">
+        <span class="exercise-badge">B-3</span>
+        <span class="exercise-title">Rolling Update y Rollback</span>
+        <span class="exercise-level lvl-basico">Básico</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Despliega <strong>nginx:1.24</strong> con 3 réplicas</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Actualiza a <strong>nginx:1.25</strong>: <code>kubectl set image deployment/nginx nginx=nginx:1.25</code></div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Observa el rolling update: <strong>kubectl rollout status deployment/nginx</strong></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Haz rollback a la versión anterior: <strong>kubectl rollout undo deployment/nginx</strong></div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0">
+      <div class="exercise-header">
+        <span class="exercise-badge">B-4</span>
+        <span class="exercise-title">Inspeccionar métricas con Prometheus</span>
+        <span class="exercise-level lvl-basico">Básico</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Abre <strong>http://192.168.109.142:30900</strong> → Graph</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Escribe <strong>up</strong> y ejecuta. ¿Qué muestra?</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text">Busca cuántos pods running hay: <strong>kube_pod_status_phase{phase="Running"}</strong></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Encuentra la métrica del uso de CPU de tu nodo master</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ EJERCICIOS MEDIOS ══════ -->
+<section class="module" id="ex2">
+  <div class="module-header">
+    <div class="module-num" style="background:#2d1500;color:#f6ad55;border:2px solid #744210;font-size:14px">🟡</div>
+    <div>
+      <div class="module-title" style="color:#f6ad55">Ejercicios Medios</div>
+      <div class="module-sub">Integración de múltiples componentes — requiere entender el stack completo</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="exercise" style="margin-top:0;background:#2d1f0a;border-color:#744210">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#744210;color:#f6ad55">M-1</span>
+        <span class="exercise-title" style="color:#f6ad55">Segunda app con base de datos</span>
+        <span class="exercise-level lvl-medio">Medio</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">1</div><div class="step-text">Crea un namespace <strong>inventory</strong> con un StatefulSet de <strong>Redis:7</strong> con PVC de 1Gi</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">2</div><div class="step-text">Despliega una app de notas simple (puede ser httpbin o cualquier app con /healthz)</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">3</div><div class="step-text">Agrega las annotations de Prometheus para scrape automático</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">4</div><div class="step-text">Crea una ArgoCD Application apuntando a esa carpeta de YAMLs</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">5</div><div class="step-text">Verifica que ArgoCD la gestiona y que Prometheus la scrapea</div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0;background:#2d1f0a;border-color:#744210">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#744210;color:#f6ad55">M-2</span>
+        <span class="exercise-title" style="color:#f6ad55">Dashboard de trazas por servicio</span>
+        <span class="exercise-level lvl-medio">Medio</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">1</div><div class="step-text">En Grafana, crea un panel con <strong>Tempo datasource</strong> que muestre las últimas 20 trazas</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">2</div><div class="step-text">Agrega filtro por <code>resource.service.name</code></div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">3</div><div class="step-text">Agrega un panel de tabla con: trace_id, duración, nombre del span, estado</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">4</div><div class="step-text"><strong>Bonus:</strong> Habilita el "Trace to Logs" en Grafana para saltar de una traza a sus logs en Loki</div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0;background:#2d1f0a;border-color:#744210">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#744210;color:#f6ad55">M-3</span>
+        <span class="exercise-title" style="color:#f6ad55">Simular carga y ver métricas</span>
+        <span class="exercise-level lvl-medio">Medio</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">1</div><div class="step-text">Instala <strong>hey</strong> o usa un loop bash para hacer 1000 requests a <code>/api/tasks</code></div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">2</div><div class="step-text">Observa en Prometheus: <strong>rate(flask_http_request_total[1m])</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">3</div><div class="step-text">Observa el p99 de latencia: <strong>histogram_quantile(0.99, rate(flask_http_request_duration_seconds_bucket[5m]))</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">4</div><div class="step-text">Escala tasks-api a 4 réplicas y repite — ¿baja la latencia?</div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0;background:#2d1f0a;border-color:#744210">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#744210;color:#f6ad55">M-4</span>
+        <span class="exercise-title" style="color:#f6ad55">Namespaces y RBAC básico</span>
+        <span class="exercise-level lvl-medio">Medio</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">1</div><div class="step-text">Crea un ServiceAccount <strong>dev-reader</strong> en namespace <strong>tasks</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">2</div><div class="step-text">Crea un Role que solo permita <strong>get, list, watch</strong> en pods y deployments</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">3</div><div class="step-text">Crea un RoleBinding que asocie el ServiceAccount al Role</div></div>
+        <div class="step"><div class="step-num" style="border-color:#f6ad55;color:#f6ad55">4</div><div class="step-text">Verifica con: <strong>kubectl auth can-i delete pods --as=system:serviceaccount:tasks:dev-reader -n tasks</strong> → debe decir "no"</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ EJERCICIOS AVANZADOS ══════ -->
+<section class="module" id="ex3">
+  <div class="module-header">
+    <div class="module-num" style="background:#1a0a0a;color:#fc8181;border:2px solid #742424;font-size:14px">🔴</div>
+    <div>
+      <div class="module-title" style="color:#fc8181">Ejercicios Avanzados</div>
+      <div class="module-sub">Desafíos que combinan todos los módulos — nivel SRE / DevOps senior</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="exercise" style="margin-top:0;background:#1a0a0a;border-color:#742424">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#742424;color:#fc8181">A-1</span>
+        <span class="exercise-title" style="color:#fc8181">Agregar un endpoint nuevo con trazas</span>
+        <span class="exercise-level lvl-avanzado">Avanzado</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">1</div><div class="step-text">Agrega a <code>app.py</code> el endpoint <strong>GET /stats</strong> que retorne un JSON con total, pendientes y completadas</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">2</div><div class="step-text">Instrumenta el endpoint con un span <strong>"get-stats"</strong> y un child span <strong>"db.count-tasks"</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">3</div><div class="step-text">Agrega un Counter de Prometheus: <strong>stats_requests_total</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">4</div><div class="step-text">Construye la imagen v1.0.5, haz push, actualiza el tag y deja que ArgoCD despliegue</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">5</div><div class="step-text">Verifica la traza en Tempo y la métrica en Prometheus</div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0;background:#1a0a0a;border-color:#742424">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#742424;color:#fc8181">A-2</span>
+        <span class="exercise-title" style="color:#fc8181">Runbook completo de incidente</span>
+        <span class="exercise-level lvl-avanzado">Avanzado</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">1</div><div class="step-text">Configura AlertManager con un <strong>webhook a webhook.site</strong> (gratis, crea uno) como receiver</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">2</div><div class="step-text">Simula el incidente: suspende ArgoCD y escala tasks-api a 0</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">3</div><div class="step-text">Confirma la recepción del webhook con el payload JSON de la alerta</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">4</div><div class="step-text">Documenta el runbook: qué alerta disparó, qué logs muestra Loki, qué trazas hay en Tempo</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">5</div><div class="step-text">Restaura y confirma la resolución automática en AlertManager</div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0;background:#1a0a0a;border-color:#742424">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#742424;color:#fc8181">A-3</span>
+        <span class="exercise-title" style="color:#fc8181">HPA — Horizontal Pod Autoscaler</span>
+        <span class="exercise-level lvl-avanzado">Avanzado</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">1</div><div class="step-text">Instala <strong>metrics-server</strong> en el cluster (necesario para HPA)</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">2</div><div class="step-text">Crea un HPA para tasks-api: <strong>mínimo 2, máximo 6 réplicas, objetivo CPU 50%</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">3</div><div class="step-text">Genera carga con un loop bash (1000 requests a /api/tasks)</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">4</div><div class="step-text">Observa cómo el HPA escala automáticamente: <strong>kubectl get hpa -n tasks -w</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">5</div><div class="step-text">Para la carga y observa el scale-down (puede tardar 5 min por estabilización)</div></div>
+      </div>
+    </div>
+
+    <div class="exercise" style="margin-top:0;background:#1a0a0a;border-color:#742424">
+      <div class="exercise-header">
+        <span class="exercise-badge" style="background:#742424;color:#fc8181">A-4</span>
+        <span class="exercise-title" style="color:#fc8181">Helm Chart para el Task Manager</span>
+        <span class="exercise-level lvl-avanzado">Avanzado</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">1</div><div class="step-text">Instala Helm y ejecuta: <strong>helm create tasks-chart</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">2</div><div class="step-text">Convierte los YAMLs de <code>app-tasks/k8s/</code> en templates con variables (<code>{{ .Values.image.tag }}</code>)</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">3</div><div class="step-text">Define en <code>values.yaml</code>: replicas, image tag, DB credentials, nodePort</div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">4</div><div class="step-text">Despliega: <strong>helm install tasks-api ./tasks-chart -n tasks</strong></div></div>
+        <div class="step"><div class="step-num" style="border-color:#fc8181;color:#fc8181">5</div><div class="step-text">Actualiza solo el tag: <strong>helm upgrade tasks-api ./tasks-chart --set image.tag=v1.0.5</strong></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ REFERENCIA RÁPIDA ══════ -->
+<section class="module" id="ref">
+  <div class="module-header">
+    <div class="module-num" style="background:#1a1f2e;color:#e2e8f0;border:2px solid #4a5568;font-size:14px">📌</div>
+    <div>
+      <div class="module-title">Referencia Rápida</div>
+      <div class="module-sub">URLs, puertos y comandos de uso diario en el laboratorio</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">URLs del cluster</div>
+    <table>
+      <tr><th>Servicio</th><th>URL</th><th>Credenciales</th></tr>
+      <tr><td>📊 Prometheus</td><td style="color:#76e4f7">http://192.168.109.142:30900</td><td>—</td></tr>
+      <tr><td>🔔 AlertManager</td><td style="color:#76e4f7">http://192.168.109.142:30903</td><td>—</td></tr>
+      <tr><td>📈 Grafana</td><td style="color:#76e4f7">http://192.168.109.142:30300</td><td>admin / bootcamp2026</td></tr>
+      <tr><td>📋 Loki (raw)</td><td style="color:#76e4f7">http://192.168.109.142:30100</td><td>—</td></tr>
+      <tr><td>🔍 Tempo (raw)</td><td style="color:#76e4f7">http://192.168.109.142:30200</td><td>—</td></tr>
+      <tr><td>🔄 ArgoCD</td><td style="color:#76e4f7">https://192.168.109.142:30443</td><td>admin / (kubectl get secret)</td></tr>
+      <tr><td>📋 Task Manager</td><td style="color:#76e4f7">http://192.168.109.142:30880</td><td>—</td></tr>
+    </table>
+  </div>
+
+  <div class="grid-2">
+    <div class="section">
+      <div class="section-title">Comandos de diagnóstico rápido</div>
+      <div class="code"><span class="c"># Estado general del cluster</span>
+<span class="g">kubectl get nodes</span> -o wide
+<span class="g">kubectl get pods</span> -A | grep -v Running
+
+<span class="c"># Ver qué está fallando</span>
+<span class="g">kubectl describe</span> pod &lt;pod&gt; -n &lt;ns&gt;
+<span class="g">kubectl logs</span> &lt;pod&gt; -n &lt;ns&gt; --previous
+
+<span class="c"># Ver eventos recientes</span>
+<span class="g">kubectl get events</span> -n &lt;ns&gt; \
+  --sort-by='.lastTimestamp' | tail -20
+
+<span class="c"># Ver uso de recursos</span>
+<span class="g">kubectl top nodes</span>
+<span class="g">kubectl top pods</span> -n tasks</div>
+    </div>
+    <div class="section">
+      <div class="section-title">Dashboards Grafana para importar</div>
+      <div class="code"><span class="c"># IDs de dashboards comunitarios</span>
+<span class="c"># Grafana → Dashboards → Import → ID</span>
+
+<span class="o">3119</span>  - Kubernetes cluster monitoring
+<span class="o">13332</span> - Kube State Metrics v2
+<span class="o">1860</span>  - Node Exporter Full
+<span class="o">7249</span>  - Kubernetes Cluster (Prometheus)
+<span class="o">14584</span> - ArgoCD
+<span class="o">16830</span> - Tekton Pipelines
+<span class="o">15141</span> - Loki Dashboard Quick Search
+<span class="o">17346</span> - Tempo / Traces overview</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Checklist de observabilidad — ¿Cubriste los 3 pilares?</div>
+    <div class="grid-3">
+      <div class="card" style="border-color:#f6ad55">
+        <div class="card-title orange">📊 Métricas ✓</div>
+        <div class="card-body" style="line-height:2">
+          ☐ CPU y RAM de nodos<br>
+          ☐ Estado de Deployments<br>
+          ☐ Métricas custom de la app<br>
+          ☐ Dashboard en Grafana<br>
+          ☐ Reglas de alerta activas
+        </div>
+      </div>
+      <div class="card" style="border-color:#76e4f7">
+        <div class="card-title blue">📋 Logs ✓</div>
+        <div class="card-body" style="line-height:2">
+          ☐ Promtail como DaemonSet<br>
+          ☐ Logs estructurados (JSON)<br>
+          ☐ Consulta en Grafana Explore<br>
+          ☐ Filtros por namespace/app<br>
+          ☐ Retención configurada (7d)
+        </div>
+      </div>
+      <div class="card" style="border-color:#b794f4">
+        <div class="card-title purple">🔍 Trazas ✓</div>
+        <div class="card-body" style="line-height:2">
+          ☐ OTel configurado en la app<br>
+          ☐ Spans manuales anidados<br>
+          ☐ Atributos en los spans<br>
+          ☐ Visible en Tempo/Grafana<br>
+          ☐ TraceQL funcionando
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    📦 <strong>Repositorio:</strong> github.com/dguerrero11/k8s-final &nbsp;|&nbsp;
+    📊 <strong>Presentación:</strong> presentacion.html &nbsp;|&nbsp;
+    📚 <strong>Este doc:</strong> concentrado-global.html &nbsp;|&nbsp;
+    🎓 <strong>Bootcamp DevOps 2026</strong>
+  </div>
+</section>
+
+</main><!-- end main -->
+
+<script>
+// Highlight active nav item on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-item');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      navLinks.forEach(l => l.classList.remove('active'));
+      const link = document.querySelector(`.nav-item[href="#${e.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
